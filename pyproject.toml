@@ -1,0 +1,20 @@
+[project]
+name = "elph"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "raykang35", email = "raykang35@icloud.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "ase>=3.24.0",
+    "phonopy>=2.37.0",
+]
+
+[project.scripts]
+elph = "elph:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
