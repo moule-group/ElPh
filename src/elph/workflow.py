@@ -1,7 +1,6 @@
 import glob
 import os
-
-main_path = os.getcwd()
+import elph.elph as ep
 
 def getGeometry(path):
     """ Using glob function in python to find the structure
@@ -14,7 +13,6 @@ def getGeometry(path):
     file: The structure file in the path
     """
     file = glob.glob(path + "/*.cif") + glob.glob(path + "/*.xyz")
-    
     if len(file) == 0:
         raise FileNotFoundError
     
@@ -39,6 +37,7 @@ def run_j0(mol_list):
     Return:
     j_A, j_B, j_C as j_0.json file
     """    
+    main_path = os.getcwd()
     json_file = glob.glob(os.path.join(main_path, 'j0_eff.json'))
     xyz_file = glob.glob(os.path.join(main_path,'1', 'monomer_1.xyz'))
     main_path = os.getcwd() # Main directory which contain all subfolders
@@ -51,18 +50,18 @@ def run_j0(mol_list):
                 sys.exit(1)  # Exit the script with an error
 
         if not xyz_file:
-            unwrap_molecule_dimer(geometry, mol_list[0], mol_list[1], mol_list[2]) # Unwrap the crystal to get single molecule and dimers
+            ep.unwrap_molecule_dimer(geometry, mol_list[0], mol_list[1], mol_list[2]) # Unwrap the crystal to get single molecule and dimers
         
         path_list = ['./1','./2','./3','./A','./B','./C']
         for path in path_list:
             os.chdir(path)
-            mol_orbital()
+            ep.mol_orbital()
             os.chdir(main_path)
 
         # Calculate J 
-        jA_eff, jA = run_catnip('./1/1.pun', './2/2.pun', './A/A.pun', './1/mo.log', './2/mo.log', './A/mo.log')
-        jB_eff, jB = run_catnip('./1/1.pun', './3/3.pun', './B/B.pun', './1/mo.log', './3/mo.log', './B/mo.log')
-        jC_eff, jC = run_catnip('./2/2.pun', './3/3.pun', './C/C.pun', './2/mo.log', './3/mo.log', './C/mo.log')
+        jA_eff, jA = ep.run_catnip('./1/1.pun', './2/2.pun', './A/A.pun', './1/mo.log', './2/mo.log', './A/mo.log')
+        jB_eff, jB = ep.run_catnip('./1/1.pun', './3/3.pun', './B/B.pun', './1/mo.log', './3/mo.log', './B/mo.log')
+        jC_eff, jC = ep.run_catnip('./2/2.pun', './3/3.pun', './C/C.pun', './2/mo.log', './3/mo.log', './C/mo.log')
 
         print(f' Done calculation on J_A = {jA_eff} eV ')
         print(f' Done calculation on J_B = {jB_eff} eV ')
@@ -90,10 +89,9 @@ def run_disp_j():
     j_list (list): The transfer integral list for displaced molecules and dimers!
     """
     main_path = os.getcwd()
-    
     if not os.path.exists(f"{main_path}/C/displacements"):
         print(' Creating displaced molecules and dimers ... ')
-        create_displacement()
+        ep.create_displacement()
         
     print(" Displacement folders are finished! ")
     
@@ -105,7 +103,7 @@ def run_disp_j():
         os.chdir(path)  
         for d in dirs:
             os.chdir(d)
-            mol_orbital() # Run Gaussian to get molecular orbitals
+            ep.mol_orbital() # Run Gaussian to get molecular orbitals
             os.chdir(os.pardir)
         os.chdir(main_path)
         
@@ -118,7 +116,6 @@ def run_disp_j():
                       'C':[2,3]} # The dict for the dimer A, B, C
       
         for key, values in dimer_dict.items():
-        
             j_list = [] # Reset j_list for each dimer
             mol_1 = values[0] # molecule 1
             mol_2 = values[1] # molecule 2
@@ -127,9 +124,9 @@ def run_disp_j():
             dimers = ase.io.read(f'{main_path}/{key}/dimer_{key}.xyz')
             offset = len(molecules) # This is because the for loop below only loop through molecule, and number of atoms in dimer is 2 times of a molecule
         
-            for na, vec, sign, in get_displacement(molecules):  
+            for na, vec, sign, in ep.get_displacement(molecules):  
             
-                j_1, j = run_catnip(f'./{mol_1}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
+                j_1, j = ep.run_catnip(f'./{mol_1}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
                                     f'./{mol_2}/{mol_2}.pun', 
                                     f'./{key}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
                                     f'./{mol_1}/displacements/disp_{na}_{vec}_{sign}/mo.log', 
@@ -137,7 +134,7 @@ def run_disp_j():
                                     f'./{key}/displacements/disp_{na}_{vec}_{sign}/mo.log')
                 j_list.append(j_1)
         
-                j_2, j = run_catnip(f'./{mol_1}/{mol_1}.pun', 
+                j_2, j = ep.run_catnip(f'./{mol_1}/{mol_1}.pun', 
                                     f'./{mol_2}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
                                     f'./{key}/displacements/disp_{na+offset}_{vec}_{sign}/disp_{na+offset}_{vec}_{sign}.pun', 
                                     f'./{mol_1}/mo.log', 
@@ -158,7 +155,6 @@ def run_matrix(mesh):
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
     """
     ####### Calculate J matrix #########
-    
     jlist_A = np.load('A_disp_J.npz')['J_ij'] # - +
     jlist_B = np.load('B_disp_J.npz')['J_ij'] # - +
     jlist_C = np.load('C_disp_J.npz')['J_ij'] # - + 
@@ -168,7 +164,6 @@ def run_matrix(mesh):
     matrix_C = get_deri_Jmatrix(jlist_C)
     
     ####### Connection with Phonon modes ########
-    
     with open('monomer.json', 'r') as j:
         mapping = list(json.load(j).values()) # The numbering of atoms for dimers
         
@@ -176,7 +171,7 @@ def run_matrix(mesh):
     mapping_B = mapping[0] + mapping[2] # molecule 1 + molecule 3
     mapping_C = mapping[1] + mapping[2] # molecule 2 + molecule 3
     
-    displacement_list = phonon(mesh)
+    displacement_list = ep.phonon(mesh) # Run phonopy modulation to create eigendisplacements list
     
     displacement_A = np.zeros((len(displacement_list),len(mapping_A),3))
     displacement_B = np.zeros((len(displacement_list),len(mapping_B),3)) 

@@ -1,2 +1,5 @@
-def main() -> None:
-    print("Hello from elph!")
+import sys
+from elph import main
+    
+main.main()
+sys.exit(0)

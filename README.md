@@ -7,14 +7,7 @@ We recommend using conda to create virtual environment.
 ```
     conda create -n elph
 ```
-Then, install the necessary package.
-```
-    conda activate elph
 
-    conda install phonopy numpy scipy matplotlib
-
-    pip install --upgrade ase
-```
 For installing Catnip (ChArge TraNsfer Integral Package), please refer to https://joshuasbrown.github.io/docs/CATNIP/catnip_downloads.html
 
 # Usage:
@@ -23,7 +16,7 @@ First step: Use visualize.py to identify the numbering of molecules, there are 3
 
 Second step: Prepare input files in the folder: cif file of materials; FORCE_SETS from Phonopy simulation (8x8x8 grids); phonopy_disp.yaml from Phonopy simulation; scripts.
 
-Third step: Run elph.py (provide the numbering of three monomers) to return electron phonon coupling parameter for further research.
+Third step: Run elph (provide the numbering of three monomers) to return electron phonon coupling parameter for further research.
 
 # Theory:
 This will divide into 2 parts. First part is transfer integral J and the second part is electron phonon coupling parameter g.
@@ -40,8 +33,6 @@ $J_{eff}= \frac{J_{ij}-\frac{S_{ij}(E_i+E_j)}{2}}{1-S_{ij}^2}$
 In order to use DIPRO to calculate transfer integral, we have to run 3 quantum-chemical simulations (2 monomers and 1 dimer), there are 9 quantum-chemical simulations in total.
 
 ## Electron Phonon Coupling Parameter g
-
-
 
 It can be further written as 
 $J_{ij} = J_{ij}^0 + \sum_{I} g_{ij}^IQ_{I}$,

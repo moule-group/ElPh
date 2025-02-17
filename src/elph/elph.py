@@ -6,10 +6,10 @@
 
 import ase.io
 import json
-import argparse
 import glob
 import os
 import numpy as np
+import networkx as nx
 import phonopy
 import subprocess
 import matplotlib.pyplot as plt
@@ -19,7 +19,7 @@ from pathlib import Path
 from phonopy.cui.create_force_sets import create_FORCE_SETS
 from ase.calculators.gaussian import Gaussian
 from ase.visualize import view
-from ase.neighborlist import natural_cutoffs, NeighborList
+from ase.neighborlist import natural_cutoffs, neighbor_list
 from ase import Atoms
 from ase.build import sort
 from scipy import sparse 
@@ -83,23 +83,28 @@ def phonon(mesh):
     
     return displacement_list
 
-def neighbor_list(atoms):
-    """ Find the neighbors for molecules in molecular crystals
-    Args:
-    atoms: ase Atoms object
-    #########################################
-    Return:
-    n_components: number of molecules
-    component_list: contains molecule number of each atom in the system
+def neighbors(atoms):
+    """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
+    Args: 
+    atoms: ASE atoms object
     """
-    nl = NeighborList(natural_cutoffs(atoms), self_interaction=False, bothways=True) # Determine the indices of each molecule using NeighborList
-    nl.update(atoms)
+    i,j,S = neighbor_list(quantities='ijS', a=atoms, cutoff=natural_cutoffs(atoms)) # i: atom index, j: neighbor index, S: pbc
 
-    conn_matrix = nl.get_connectivity_matrix(False) # Connectivity matrix
-    
-    n_components, component_list = sparse.csgraph.connected_components(conn_matrix) 
+    atom_index = []
+    neighbor_index = []
 
-    return n_components, component_list
+    for a, b, s in zip(i,j,S):
+        if sum(s) == 0:
+            atom_index.append(int(a))
+            neighbor_index.append(int(b))
+
+    G = nx.Graph() # Initiate networkx
+    for i, j in zip(atom_index, neighbor_index):
+        G.add_edge(int(i), int(j))
+
+    molecules = list(nx.connected_components(G))
+
+    return molecules
 
 def unwrap_molecule_dimer(structure_path, mol1, mol2, mol3):
     """ Get single molecule and molecular pairs (dimer) files.
@@ -114,12 +119,12 @@ def unwrap_molecule_dimer(structure_path, mol1, mol2, mol3):
     """
     atoms = ase.io.read(structure_path) # Load structure
     atoms *= (2,2,2) # Supercell
-    n_components, component_list = neighbor_list(atoms)
     
     # Group atoms by their molecule index
+    neighbors = neighbors(atoms)
     molecules = defaultdict(list)
-    for atom_idx, mol_idx in enumerate(component_list):
-        molecules[mol_idx].append(atom_idx)
+    for mol_idx, atom_idx in enumerate(neighbors): # Loop through every molecules and 
+        molecules[mol_idx].extend(list(atom_idx))
 
     os.mkdir('1')
     os.mkdir('2')
