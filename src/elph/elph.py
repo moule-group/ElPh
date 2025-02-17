@@ -24,6 +24,22 @@ from ase import Atoms
 from ase.build import sort
 from scipy import sparse 
 from collections import OrderedDict, defaultdict
+
+def getGeometry(path):
+    """ Using glob function in python to find the structure
+    file in the current path
+    The type of the structure files: ".cif"
+    Args:
+    path: The current directory (use os.getcwd())
+    #########################################
+    Return:
+    file: The structure file in the path
+    """
+    file = glob.glob(path + "/*.cif") + glob.glob(path + "/*.xyz")
+    if len(file) == 0:
+        raise FileNotFoundError
+    
+    return file[0]
     
 def phonon(mesh):
     """ Obtain FORCE_CONSTANTS file for specific calculator from Phonopy and return normal mode frequencies;
@@ -83,7 +99,7 @@ def phonon(mesh):
     
     return displacement_list
 
-def neighbors(atoms):
+def neighbor(atoms):
     """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
     Args: 
     atoms: ASE atoms object
@@ -121,8 +137,8 @@ def unwrap_molecule_dimer(structure_path, mol1, mol2, mol3):
     atoms *= (2,2,2) # Supercell
     
     # Group atoms by their molecule index
-    neighbors = neighbors(atoms)
-    molecules = defaultdict(list)
+    neighbors = neighbor(atoms) 
+    molecules = defaultdict(list) # empty dic for saving molecule POS
     for mol_idx, atom_idx in enumerate(neighbors): # Loop through every molecules and 
         molecules[mol_idx].extend(list(atom_idx))
 
