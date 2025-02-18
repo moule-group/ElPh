@@ -1,7 +1,7 @@
 ################### Electron Phonon Coupling molecular semiconductors (Pentacene, Rubrene) #####################
 # Author: Ray
 # Begin date: 2024/11/14
-# 1st modified: Mapping for atoms is not correct, supercell size in phonopy modulation should be 1 1 1;
+# 1st modified: Mapping for atoms is not correct, supercell size in phonopy modulation should match the supercell size (here is 2x2x2)
 # Cannot use .xyz file (since .xyz file gives you many atoms outside unitcell)
 
 import ase.io
@@ -90,7 +90,7 @@ def phonon(mesh):
             phonon_modes.append(mode_)
     
     for pm in phonon_modes:
-        phonon.run_modulations(dimension=[1,1,1],phonon_modes=pm) # Change here, dimension should be [1x1x1] to fit the number of phonon modes.
+        phonon.run_modulations(dimension=[2,2,2],phonon_modes=pm) # Change here, dimension should be [1x1x1] to fit the number of phonon modes.
         modulation, supercell = phonon.get_modulations_and_supercell()
         displacement = modulation
         displacement_list.append(np.real(displacement))

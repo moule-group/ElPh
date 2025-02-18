@@ -164,9 +164,9 @@ def run_matrix(mesh):
     jlist_B = np.load('B_disp_J.npz')['J_ij'] # - +
     jlist_C = np.load('C_disp_J.npz')['J_ij'] # - + 
  
-    matrix_A = get_deri_Jmatrix(jlist_A)
-    matrix_B = get_deri_Jmatrix(jlist_B)
-    matrix_C = get_deri_Jmatrix(jlist_C)
+    matrix_A = ep.get_deri_Jmatrix(jlist_A)
+    matrix_B = ep.get_deri_Jmatrix(jlist_B)
+    matrix_C = ep.get_deri_Jmatrix(jlist_C)
     
     ####### Connection with Phonon modes ########
     with open('monomer.json', 'r') as j:
@@ -176,24 +176,25 @@ def run_matrix(mesh):
     mapping_B = mapping[0] + mapping[2] # molecule 1 + molecule 3
     mapping_C = mapping[1] + mapping[2] # molecule 2 + molecule 3
     
-    displacement_list = ep.phonon(mesh) # Run phonopy modulation to create eigendisplacements list
+    displacement_list = ep.phonon(mesh) # Run phonopy modulation to create eigendisplacements list 
+    # the shape of displacement_list is [ phonon modes(number of q point * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
     
     displacement_A = np.zeros((len(displacement_list),len(mapping_A),3))
     displacement_B = np.zeros((len(displacement_list),len(mapping_B),3)) 
     displacement_C = np.zeros((len(displacement_list),len(mapping_C),3))
     
-    for i, disp in enumerate(displacement_list): # i is the index, disp is the sublist in displacement_list
+    for k, disp in enumerate(displacement_list): # k is the index of phonon modes, disp is the sublist in displacement_list
     
-        for j, a in enumerate(mapping_A):
-            displacement_A[i, j, :] = disp[0][a]  # Assign the corresponding displacement
+        for i, a in enumerate(mapping_A): # i is the index of the dimer, a is the atom index of the supercell
+            displacement_A[k, i, :] = disp[0][a]  # Assign the corresponding displacement
 
-        for j, b in enumerate(mapping_B):
-            displacement_B[i, j, :] = disp[0][b]  # Assign the corresponding displacement
+        for i, b in enumerate(mapping_B):
+            displacement_B[k, i, :] = disp[0][b]  # Assign the corresponding displacement
 
-        for j, c in enumerate(mapping_C):
-            displacement_C[i, j, :] = disp[0][c]  # Assign the corresponding displacement
+        for i, c in enumerate(mapping_C):
+            displacement_C[k, i, :] = disp[0][c]  # Assign the corresponding displacement
     
-    ep_couplingA = np.einsum('ij,kij->k',matrix_A, displacement_A)  # ij: (i is number of atoms, j is 3 (x,y,z); kij: k is the number of displaced structure
+    ep_couplingA = np.einsum('ij,kij->k',matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
     ep_couplingB = np.einsum('ij,kij->k',matrix_B, displacement_B)  # We get coefficient g_ij here           
     ep_couplingC = np.einsum('ij,kij->k',matrix_C, displacement_C)               
     
@@ -203,8 +204,5 @@ def run_matrix(mesh):
     
     # Save the electron-phonon coupling matrix as .yaml file and a numpy .npz file.
     np.savez_compressed('ep_coupling' + '.npz', **ep_coupling)
-
-    with open('ep_coupling.yaml', 'w') as file:
-        yaml.dump(ep_coupling, file, default_flow_style=False)
 
     print(" Finish creating electron phonon coupling matrix!!! ")
