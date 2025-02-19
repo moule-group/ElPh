@@ -2,10 +2,29 @@
 
 # Installation:
 
+Requirement: Gaussian 09 or 16
+
 We recommend using conda to create virtual environment.
 
 ```
+    git clone https://github.com/moule-group/ElPh.git
+
+```
+
+```
     conda create -n elph
+    cd Elph
+    pip install .
+```
+
+Environment variables in .bashrc
+
+```
+export PATH="your_path/catnip/build/":$PATH
+export GAUSS_EXEDIR="your_path/g16"
+export GAUSS_SCRDIR="$your_path/GaussianScratch"
+export PATH="$GAUSS_EXEDIR:$PATH"
+export PATH="$GAUSS_SCRDIR:$PATH"
 ```
 
 For installing Catnip (ChArge TraNsfer Integral Package), please refer to https://joshuasbrown.github.io/docs/CATNIP/catnip_downloads.html
