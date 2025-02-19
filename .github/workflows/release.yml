@@ -5,6 +5,10 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: read-all 
+  contents: write-all
+
 jobs:
   release:
     name: Release pushed tag
