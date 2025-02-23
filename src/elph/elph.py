@@ -23,6 +23,7 @@ from ase.neighborlist import natural_cutoffs, neighbor_list
 from ase import Atoms
 from ase.build import sort
 from scipy import sparse 
+from scipy.constants import hbar, k
 from collections import OrderedDict, defaultdict
 
 def getGeometry(path):
@@ -41,16 +42,18 @@ def getGeometry(path):
     
     return file[0]
     
-def phonon(mesh):
+def phonon(natoms,mesh,sc):
     """ Obtain FORCE_CONSTANTS file for specific calculator from Phonopy and return normal mode frequencies;
-        Run Phonopy modulation to create atomic displacement and return displacement_list.
+        Run Phonopy modulation to create atomic displacement and return modulation and frequency.
     Args:
+    natoms (int): Number of atoms in the system (Defaults to None)
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
+    sc (list): Need define a supercell size. (Defaults to [2,2,2])
     #########################################
     Output:
     phonopy_params.yaml file
     mesh.yaml file (frequency)
-    displacement_list
+    mod, freq: displacement_list and normal mode frequencies
     """
     if os.path.exists("FORCE_SETS"):
         print(" FORCE_SETS already exists, continue calculation! ")
@@ -61,43 +64,30 @@ def phonon(mesh):
         sys.exit(1)
     
     phonon = phonopy.load('phonopy_disp.yaml')
-    force_constant = phonon.produce_force_constants()
-    print(" Creating phonopy_params.yaml file which saves force constants. ")
-    phonon.save(settings={'force_constants': True})
-    print(" Done creating phonopy_params.yaml. ")
-    
     phonon.run_mesh(mesh,with_eigenvectors=True)
-    print(" Creating mesh.yaml file which saves normal mode frequencies. ")
-    phonon.write_yaml_mesh() 
-    print(" Done creating mesh.yaml. ")
-    
     mesh_data = phonon.get_mesh_dict()
-    
-    phonon_modes = [] # Empty list to save phonon modes
-    displacement_list = [] # Empty list to save displacement
-    
-    amplitude = 0.01  # Displacement amplitude (Defaults to 0.01 according to phonopy)
-    phase = 0.0 # Phase factor (Defaults to 0 according to phonopy)
-    
-    print(" Starting Modulation using Phonopy ")
-    for i, q in enumerate(mesh_data['qpoints']):
-        frequencies = mesh_data['frequencies'][i]
-        eigenvectors = mesh_data['eigenvectors'][i]
-    
-        for band_index in range(len(frequencies)):
-            mode = [q, band_index, amplitude, phase] 
-            mode_ = [mode]
-            phonon_modes.append(mode_)
-    
-    for pm in phonon_modes:
-        phonon.run_modulations(dimension=[2,2,2],phonon_modes=pm) # Change here, dimension should be [1x1x1] to fit the number of phonon modes.
-        modulation, supercell = phonon.get_modulations_and_supercell()
-        displacement = modulation
-        displacement_list.append(np.real(displacement))
-        
+    freq = mesh_data['frequencies'].flatten()
+    qpts = mesh_data['qpoints']
+    eigenv = mesh_data['eigenvectors']
+    a=sc[0]
+    b=sc[1]
+    c=sc[2]
+    mod = np.zeros((int(freq.shape[0]*qpts.shape[0]),natoms*a*b*c,3))
+
+    mode = [[q, band_index, 1, 0.0] for q in qpts for band_index in range(natoms*3)]
+ 
+    phonon.run_modulations(dimension=(a,b,c),phonon_modes=mode) 
+    modulation, supercell = phonon.get_modulations_and_supercell()
+    mod = np.real(modulation)
+
+    index = np.where(freq>0)
+    freq = freq[index]
+    mod = mod[index]
+
+    np.savetxt("frequencies.txt", freq, header="Phonon frequencies (THz)")
     print(" Finish Modulation using Phonopy ")
     
-    return displacement_list
+    return mod, freq
 
 def neighbor(atoms):
     """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
@@ -263,6 +253,7 @@ def mol_orbital(atoms=None):
     """ Run Gaussian to compute the molecular orbitals for the system
     Args:
     atoms (ASE atoms object): optional, if not specified, it will run getGeometry 
+    opt (Boolean): Run Gaussian to optimize the structure, defaults to False.
     ########################################
     Return:
     .pun file which contains molecular orbital for the cacluation later for J 
@@ -281,7 +272,7 @@ def mol_orbital(atoms=None):
                               label='mo',
                               save=None,
                               method='b3lyp',
-                              basis='3-21G*',
+                              basis='3-21G*', # should use 6-31G* 
                               scf='tight',
                               pop='full',
                               extra='nosymm punch=mo iop(3/33=1)') # iop(3/33=1) output one-electron integrals to log file.
@@ -337,6 +328,19 @@ def get_deri_Jmatrix(j_list, delta=0.01):
     matrix = (np.abs(j_p) - np.abs(j_n)) / (2 * delta)
 
     return matrix
+
+def variance(freqs, g, temp):
+    """ Calculate the variance of the transfer integral J
+    Apply the formula: Var(J) = <J^2> - <J>^2
+    Args:
+    freqs: The numpy array of phonon frequencies
+    g: electron-phonon coupling matrix
+    temp: Temperture in Kelvin
+    """
+    var = (g**2/2)/np.tanh((hbar*freqs*1e12)/(2*k*temp)) # freqs in Phonopy is THz, so need to convert to Hz
+
+    return var
+
         
 
     

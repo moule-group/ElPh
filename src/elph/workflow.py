@@ -151,13 +151,15 @@ def run_disp_j():
             np.savez_compressed(key + '_disp_J.npz', **data)
             print(f" Successfully create {key}_disp_J.npz file which saves J_ij!!! ")
         
-def run_matrix(mesh):
+def run_matrix(natoms,mesh,sc):
     """ Calculate electron phonon coupling matrix and then connect with each phonon mode (from Phonopy)
     Dependency: 
     phonon(mesh), this function is to get phonon modes
     ########################################################
     Args:
+    natoms (int): Number of atoms of unitcell, Defaults to None
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
+    sc (list): The supercell matrix. (Defaults to [2,2,2])
     """
     ####### Calculate J matrix #########
     jlist_A = np.load('A_disp_J.npz')['J_ij'] # - +
@@ -176,23 +178,24 @@ def run_matrix(mesh):
     mapping_B = mapping[0] + mapping[2] # molecule 1 + molecule 3
     mapping_C = mapping[1] + mapping[2] # molecule 2 + molecule 3
     
-    displacement_list = ep.phonon(mesh) # Run phonopy modulation to create eigendisplacements list 
+    main_path = os.getcwd()
+    atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
+    natoms = len(atoms) # Number of atoms in the supercell
+    displacement, freqs = ep.phonon(natoms,mesh,sc) # Run phonopy modulation to create eigendisplacements list 
     # the shape of displacement_list is [ phonon modes(number of q point * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
     
-    displacement_A = np.zeros((len(displacement_list),len(mapping_A),3))
-    displacement_B = np.zeros((len(displacement_list),len(mapping_B),3)) 
-    displacement_C = np.zeros((len(displacement_list),len(mapping_C),3))
+    displacement_A = np.zeros((displacement.shape[0],len(mapping_A),3))
+    displacement_B = np.zeros((displacement.shape[0],len(mapping_B),3)) 
+    displacement_C = np.zeros((displacement.shape[0],len(mapping_C),3))
     
-    for k, disp in enumerate(displacement_list): # k is the index of phonon modes, disp is the sublist in displacement_list
-    
-        for i, a in enumerate(mapping_A): # i is the index of the dimer, a is the atom index of the supercell
-            displacement_A[k, i, :] = disp[0][a]  # Assign the corresponding displacement
+    for i, a in enumerate(mapping_A): # i is the index of the dimer, a is the atom index of the supercell
+        displacement_A[:, i, :] = displacement[:,a,:]  # Assign the corresponding displacement
 
-        for i, b in enumerate(mapping_B):
-            displacement_B[k, i, :] = disp[0][b]  # Assign the corresponding displacement
+    for i, b in enumerate(mapping_B):
+        displacement_B[:, i, :] = displacement[:,b,:]  # Assign the corresponding displacement
 
-        for i, c in enumerate(mapping_C):
-            displacement_C[k, i, :] = disp[0][c]  # Assign the corresponding displacement
+    for i, c in enumerate(mapping_C):
+         displacement_C[:, i, :] = displacement[:,c,:]  # Assign the corresponding displacement
     
     ep_couplingA = np.einsum('ij,kij->k',matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
     ep_couplingB = np.einsum('ij,kij->k',matrix_B, displacement_B)  # We get coefficient g_ij here           
@@ -202,7 +205,15 @@ def run_matrix(mesh):
                    'B':ep_couplingB,
                    'C':ep_couplingC}
     
-    # Save the electron-phonon coupling matrix as .yaml file and a numpy .npz file.
+    # Save the electron-phonon coupling matrix asp a numpy .npz file.
     np.savez_compressed('ep_coupling' + '.npz', **ep_coupling)
 
-    print(" Finish creating electron phonon coupling matrix!!! ")
+    variA = ep.variance(freqs, ep_couplingA, 298) # Variance for dimer A
+    variB = ep.variance(freqs, ep_couplingA, 298) # Variance for dimer B
+    variC = ep.variance(freqs, ep_couplingA, 298) # Variance for dimer C
+
+    variance = {'A':variA,
+                'B':variB,
+                'C':variC}
+
+    np.savez_compressed('variance' + '.npz', **variance)

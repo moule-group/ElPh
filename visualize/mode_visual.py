@@ -25,24 +25,6 @@ for q in range(nqpts):
 # Load electron-phonon coupling 
 epc = np.load('ep_coupling.npz')
 
-
-
-# the vibrational amplitude of the phonon mode
-
-# We need to deal with reduced mass
-
-# reduced_mass = (m1 * m2) / (m1 + m2) # Reduced mass of the two atoms
-
-# amp_list = []
-
-# for freq in freq_list:
-#      amp = np.sqrt( (kb*temp)/(reduced_mass*(freq**2)) ) # Vibrational amplitude A_{k}
-#      amp_list.append(amp)
-
-# Fluctuation of the charge transfer integral sigma = g_{ij} * A_{k}
-
-# sigma = 
-
 fig, axes = plt.subplots(3, 1, sharex=True, figsize=(6, 8))
 
 for q in range(len(freq_list)):
@@ -75,6 +57,20 @@ axes[2].set_ylim(-0.5, 0.5)
 
 axes[-1].set_xlim(-10, 3500) 
 axes[-1].set_xlabel(r'$Energy$ (cm-1)')
+
+
+fig, ax = plt.subplots()
+
+print(freq.shape[0])
+
+for q in range(freq.shape[0]):
+
+    ax.bar(freq[q]*33, var[q], width=0.5, color='red')
+
+plt.show()
+
+
+
 plt.show()
 
 
