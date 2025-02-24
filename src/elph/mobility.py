@@ -3,6 +3,24 @@ import numpy as np
 from scipy.constants import e, k
 
 
+def hamiltonian(atoms, j_ij, sigma, nx, ny):
+    """ Define the tight-binding Hamiltonian matrix for the charge carrier.
+    H = H_el + H_ph + H_elph,l + H_elph,nl
+      = (H_ii + H_ij) + H_ph + H_elph,l + H_elph,nl
+    Args:
+    atoms: ase atoms object
+    j_ij: Inter-molecular transfer integral (J_a, J_b, J_c)
+    sigma: dynamic disorder (sigma_a, sigma_b, sigma_c)
+    nx (int): supercell size in x-direction
+    ny (int): supercell size in y-direction
+    """
+    nmol = len(atoms)
+    H = np.zeros((nx*nmol,ny*nmol), dtype=complex)
+    
+    H = 
+
+    return H
+
 def local_length():
     """
     Calculate the localization length of the charge carrier.
