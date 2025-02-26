@@ -209,8 +209,8 @@ def run_matrix(natoms,mesh,sc):
     np.savez_compressed('ep_coupling' + '.npz', **ep_coupling)
 
     variA = ep.variance(freqs, ep_couplingA, 298) # Variance for dimer A
-    variB = ep.variance(freqs, ep_couplingA, 298) # Variance for dimer B
-    variC = ep.variance(freqs, ep_couplingA, 298) # Variance for dimer C
+    variB = ep.variance(freqs, ep_couplingB, 298) # Variance for dimer B
+    variC = ep.variance(freqs, ep_couplingC, 298) # Variance for dimer C
 
     variance = {'A':variA,
                 'B':variB,
