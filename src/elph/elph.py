@@ -12,6 +12,7 @@ import numpy as np
 import networkx as nx
 import phonopy
 import subprocess
+import sys
 import matplotlib.pyplot as plt
 import elph.utils as ut
 from time import time
