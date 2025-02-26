@@ -19,7 +19,7 @@ def getGeometry(path):
     Return:
     file: The structure file in the path
     """
-    file = glob.glob(path + "/*.cif") + glob.glob(path + "/*.xyz")
+    file = glob.glob(path + "/*.cif") + glob.glob(path + "/*.vasp") + glob.glob(path + "/*.xyz")
     if len(file) == 0:
         raise FileNotFoundError
     

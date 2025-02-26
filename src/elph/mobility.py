@@ -7,6 +7,8 @@ def hamiltonian(atoms, j_ij, sigma, nx, ny):
     """ Define the tight-binding Hamiltonian matrix for the charge carrier.
     H = H_el + H_ph + H_elph,l + H_elph,nl
       = (H_ii + H_ij) + H_ph + H_elph,l + H_elph,nl
+    In TLT limit, because we are considering short timing, we neglect phonon term. We only need to include electronic 
+    & e-p coupling term. (Onsite energy can be set to zero or not, depending on the accuracy level you want to achieve)
     Args:
     atoms: ase atoms object
     j_ij: Inter-molecular transfer integral (J_a, J_b, J_c)
