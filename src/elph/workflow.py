@@ -6,6 +6,7 @@ import os
 import sys
 import yaml
 import elph.elph as ep
+from elph.mobility import Mobility
 
 def getGeometry(path):
     """ Using glob function in python to find the structure
@@ -217,3 +218,25 @@ def run_matrix(natoms,mesh,sc):
                 'C':variC}
 
     np.savez_compressed('variance' + '.npz', **variance)
+
+def run_tlt_mobility(filename="mobility.json"):
+    """
+    Run TLT mobility simulation
+    """
+    print(" Running TLT mobility simulation using parameters in mobility.json ... ")
+    with open(filename, "r") as file:
+        config = json.load(file)
+
+    mobility = Mobility(**config)
+    mobilityx, mobilityy, mobility_average = mobility.tlt_mobility()
+
+    mobility = {'Mobility on X direction':f'{mobilityx}', 
+                'Mobility on Y direction':f'{mobilityy}',
+                'Average mobility ':f'{mobility_average}'
+    }
+    
+    with open('tlt_mobility.json', 'w', encoding='utf-8') as f:
+        json.dump(mobility, f, ensure_ascii=False, indent=4)
+
+   
+    
