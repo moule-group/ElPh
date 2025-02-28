@@ -16,7 +16,7 @@ def main():
     ut.print_start()
 
     try:
-        if not args.mu:
+        if not args.mobility:
             run_j0(args.mol) # Create monomers and dimers and calculate J_0 of dimers.
             run_disp_j() # Create displaced dimers and calculate J_ij of dimers.
             run_matrix(None,args.mesh,args.supercell) # Calculate electron phonon coupling matrix

@@ -224,10 +224,8 @@ def run_tlt_mobility(filename="mobility.json"):
     Run TLT mobility simulation
     """
     print(" Running TLT mobility simulation using parameters in mobility.json ... ")
-    with open(filename, "r") as file:
-        config = json.load(file)
 
-    mobility = Mobility(**config)
+    mobility = Mobility()
     mobilityx, mobilityy, mobility_average = mobility.tlt_mobility()
 
     mobility = {'Mobility on X direction':f'{mobilityx}', 

@@ -1,6 +1,8 @@
 # Charge carrier mobility using Transient Localization Theory (TLT)
 import numpy as np
+import elph.utils as ut
 from scipy.constants import e, hbar, k
+
 jtoev = 6.241509074460763e+18 # Convert J to eV
 
 class Mobility():
@@ -16,24 +18,37 @@ class Mobility():
     translation_dist (float): One of the lattice parameter will be consider into interaction
     j_ij (list): Inter-molecular transfer integral (ex: J_a, J_b, J_c)
     sigma (list): nonlocal electronic phonon coupling (dynamic disorder) (ex: sigma_a, sigma_b, sigma_c)
+    temp (float): Temperature in Kelvin (Defaults to 300)
     inverse_htau (float): Inverse of the scattering time (hbar/tau) units in eV (Defaults to 5e-3)
     hole (bool): If True, hole transport, otherwise electron transport (Defaults to True)
     realizations (int): Number of realizations for average calculation (Defaults to 250)
+    mob_file (str): The json file containing the mobility parameters (Defaults to "mobility.json")
     """
-    def __init__(self, atoms, nx, ny, nz, lattice_vecs, plane, interaction_types, translation_dist, j_ij, sigma, inverse_htau=5e-3, hole=True,realizations=250):
-        self.atoms = atoms
-        self.nx = nx
-        self.ny = ny
-        self.nz = nz
-        self.lattice_vecs = lattice_vecs
-        self.plane = plane
-        self.interaction_types = interaction_types
-        self.translation_dist = translation_dist
-        self.j_ij = j_ij
-        self.sigma = sigma
-        self.inverse_htau = inverse_htau
-        self.hole = hole
-        self.realizations = realizations
+    def __init__(self, atoms, nx, ny, nz, lattice_vecs, plane, interaction_types, translation_dist, j_ij, sigma, temp=300.0, inverse_htau=5e-3, hole=True,realizations=250, 
+                 mob_file="mobility.json"):
+        
+        if mob_file:
+            with open(mob_file, "r") as file:
+                config = json.load(file)
+            
+            self.atoms = config["atoms"]
+            self.nx = config["nx"]
+            self.ny = config["ny"]
+            self.nz = config["nz"]
+            self.lattice_vecs = config["lattice_vecs"]
+            self.plane = config["plane"]
+            self.interaction_types = config["interaction_types"]
+            self.translation_dist = config["translation_dist"]
+            self.j_ij = config["j_ij"]
+            self.sigma = config["sigma"]
+            self.temp = config["temp"] 
+            self.inverse_htau = config["inverse_htau"]
+            self.hole = config["hole"]
+            self.realizations = config["realizations"]
+        
+        else:
+            ut.print_error("Mobility parameters are missing!")
+            sys.exit(0)
 
     def generate_lattice(self):
         '''
