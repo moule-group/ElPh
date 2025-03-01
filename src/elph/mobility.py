@@ -1,5 +1,6 @@
 # Charge carrier mobility using Transient Localization Theory (TLT)
 import numpy as np
+import json
 import elph.utils as ut
 from scipy.constants import e, hbar, k
 
