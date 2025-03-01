@@ -78,7 +78,7 @@ class Mobility():
         dist_vecs (np.array): The distance vectors array after applying PBC
         """
         for i in range(3):  # 3D case: x, y and z
-            half_length = lattice_vecs[i] / 2  # Half of unit cell in i direction
+            half_length = self.lattice_vecs[i] / 2  # Half of unit cell in i direction
         
             if dist_vecs[:, :, i].any() > self.lattice_vecs[i, i] / 2.:
                 dist_vecs[:, :, i] -= self.lattice_vecs[i, i]
@@ -107,7 +107,7 @@ class Mobility():
         N = len(lattice) # number of molecules in supercell
     
         dist_vecs = lattice[:, None, :] - lattice[None, :, :] # Compute all pairwise distance vectors (dist_vecs.shape = (N,N,3))
-        dist_vecs = self.dist_pbc(dist_vecs, self.lattice_vecs) # apply PBC 
+        dist_vecs = self.dist_pbc(dist_vecs) # apply PBC 
     
         distances = np.linalg.norm(dist_vecs, axis=-1) # Compute Euclidean distance matrix
 
