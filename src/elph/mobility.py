@@ -62,9 +62,9 @@ class Mobility():
         positions = np.zeros((n_in_cell * self.nx * self.ny * self.nz, 3))
     
         count = 0
-        for a in range(nx):
-            for b in range(ny):
-                for c in range(nz):
+        for a in range(self.nx):
+            for b in range(self.ny):
+                for c in range(self.nz):
                     positions[count:(count + n_in_cell),] = atoms + [a, b, c]
                     count += n_in_cell
         return positions
