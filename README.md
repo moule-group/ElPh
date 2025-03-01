@@ -46,6 +46,8 @@ elph -m n1 n2 n3
 
 ## Transient Localization Theory Charge Carrier Mobility
 
+Prepare mobility.json file as the input, then run
+
 ```
 elph -mu
 ```

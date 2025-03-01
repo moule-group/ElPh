@@ -32,20 +32,20 @@ class Mobility():
             with open(mob_file, "r") as file:
                 config = json.load(file)
             
-            self.atoms = config["atoms"]
-            self.nx = config["nx"]
-            self.ny = config["ny"]
-            self.nz = config["nz"]
-            self.lattice_vecs = config["lattice_vecs"]
-            self.plane = config["plane"]
-            self.interaction_types = config["interaction_types"]
-            self.translation_dist = config["translation_dist"]
-            self.j_ij = config["j_ij"]
-            self.sigma = config["sigma"]
-            self.temp = config["temp"] 
-            self.inverse_htau = config["inverse_htau"]
-            self.hole = config["hole"]
-            self.realizations = config["realizations"]
+            self.atoms = config.get("atoms", atoms)
+            self.nx = config.get("nx", nx)
+            self.ny = config.get("ny", ny)
+            self.nz = config.get("nz", nz)
+            self.lattice_vecs = config.get("lattice_vecs", lattice_vecs)
+            self.plane = config.get("plane", plane)
+            self.interaction_types = config.get("interaction_types", interaction_types)
+            self.translation_dist = config.get("translation_dist", translation_dist)
+            self.j_ij = config.get("j_ij", j_ij)
+            self.sigma = config.get("sigma", sigma)
+            self.temp = config.get("temp", temp)  # FIXED LINE
+            self.inverse_htau = config.get("inverse_htau", inverse_htau)
+            self.hole = config.get("hole", hole)
+            self.realizations = config.get("realizations", realizations)
         
         else:
             ut.print_error("Mobility parameters are missing!")
