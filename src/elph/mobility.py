@@ -107,7 +107,7 @@ class Mobility():
         N = len(lattice) # number of molecules in supercell
     
         dist_vecs = lattice[:, None, :] - lattice[None, :, :] # Compute all pairwise distance vectors (dist_vecs.shape = (N,N,3))
-        dist_vecs = self.dist_pbc(dist_vecs, lattice_vectors) # apply PBC 
+        dist_vecs = self.dist_pbc(dist_vecs, self.lattice_vecs) # apply PBC 
     
         distances = np.linalg.norm(dist_vecs, axis=-1) # Compute Euclidean distance matrix
 
