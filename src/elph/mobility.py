@@ -263,9 +263,9 @@ class Mobility():
         """
         avglx2, avgly2 = self.avg_localization()
         tau = hbar * jtoev / self.inverse_htau # unit: second
-        mobilityx = 1e-16 * e * avg_lx2/ (2 * tau * k * self.temp) # Unit is cm^2/Vs
-        mobilityy = 1e-16 * e * avg_ly2 / (2 * tau * k * self.temp)
-        mobility_average = 1e-16 * e * 0.5*(avg_lx2 + avg_ly2) / (2 * tau * k * self.temp)
+        mobilityx = 1e-16 * e * avglx2/ (2 * tau * k * self.temp) # Unit is cm^2/Vs
+        mobilityy = 1e-16 * e * avgly2 / (2 * tau * k * self.temp)
+        mobility_average = 1e-16 * e * 0.5*(avglx2 + avgly2) / (2 * tau * k * self.temp)
 
         return mobilityx, mobilityy, mobility_average
 
