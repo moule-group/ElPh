@@ -11,7 +11,8 @@ def main():
     parser.add_argument("-m", "--mol", type=int, nargs=3, help='The numbering of molecule 1 2 and 3') # Add an argument: mol
     parser.add_argument("-s", "--supercell", type=int, nargs=3, default=[2,2,2], help='The supercell matrix') # Add an argument: supercell
     parser.add_argument("-mu", "--mobility", action='store_true', help='Calculate the mobility') # Add an argument: mobility
-    parser.add_argument("-f", "--filename", type=str, help='Mobility calculation output name') # Add an argument: filename
+    parser.add_argument("-o", "--output", type=str, default=None, help='Mobility calculation output name') # Add an argument: filename
+    args = parser.parse_args() # Parse the argument
     
     ut.print_start()
 
@@ -23,11 +24,11 @@ def main():
             ut.print_end()
         else:  
             
-            if args.filename is None:
+            if args.output is None:
                 run_tlt_mobility() # Calculate the mobility
                 ut.print_end()
             else:
-                run_tlt_mobility(args.filename)
+                run_tlt_mobility(args.output)
                 ut.print_end()
 
     except KeyboardInterrupt:
