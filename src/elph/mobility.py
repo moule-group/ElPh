@@ -24,7 +24,7 @@ class Mobility():
     realizations (int): Number of realizations for average calculation (Defaults to 250)
     mob_file (str): The json file containing the mobility parameters (Defaults to "mobility.json")
     """
-    def __init__(self, atoms, nx, ny, nz, lattice_vecs, plane, interaction_types, translation_dist, j_ij, sigma, temp=300.0, inverse_htau=5e-3, hole=True,realizations=250, 
+    def __init__(self, atoms=None, nx=1, ny=1, nz=1, lattice_vecs=None, plane=None, interaction_types=None, translation_dist=None, j_ij=None, sigma=None, temp=300.0, inverse_htau=5e-3, hole=True,realizations=250, 
                  mob_file="mobility.json"):
         
         if mob_file:
