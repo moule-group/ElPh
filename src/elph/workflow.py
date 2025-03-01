@@ -219,7 +219,7 @@ def run_matrix(natoms,mesh,sc):
 
     np.savez_compressed('variance' + '.npz', **variance)
 
-def run_tlt_mobility(filename="mobility.json"):
+def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
     """
     Run TLT mobility simulation
     """
@@ -233,7 +233,7 @@ def run_tlt_mobility(filename="mobility.json"):
                 'Average mobility ':f'{mobility_average}'
     }
     
-    with open('tlt_mobility.json', 'w', encoding='utf-8') as f:
+    with open(f'{output}.json', 'w', encoding='utf-8') as f:
         json.dump(mobility, f, ensure_ascii=False, indent=4)
 
    

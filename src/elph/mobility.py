@@ -32,11 +32,11 @@ class Mobility():
             with open(mob_file, "r") as file:
                 config = json.load(file)
             
-            self.atoms = config.get("atoms", atoms)
+            self.atoms = np.array(config.get("atoms", atoms))
             self.nx = config.get("nx", nx)
             self.ny = config.get("ny", ny)
             self.nz = config.get("nz", nz)
-            self.lattice_vecs = config.get("lattice_vecs", lattice_vecs)
+            self.lattice_vecs = np.array(config.get("lattice_vecs", lattice_vecs))
             self.plane = config.get("plane", plane)
             self.interaction_types = config.get("interaction_types", interaction_types)
             self.translation_dist = config.get("translation_dist", translation_dist)
@@ -48,7 +48,7 @@ class Mobility():
             self.realizations = config.get("realizations", realizations)
         
         else:
-            ut.print_error("Mobility parameters are missing!")
+            ut.print_error("Mobility parameters (mobility.json) are missing!")
             sys.exit(0)
 
     def generate_lattice(self):

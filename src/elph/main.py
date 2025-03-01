@@ -11,7 +11,7 @@ def main():
     parser.add_argument("-m", "--mol", type=int, nargs=3, help='The numbering of molecule 1 2 and 3') # Add an argument: mol
     parser.add_argument("-s", "--supercell", type=int, nargs=3, default=[2,2,2], help='The supercell matrix') # Add an argument: supercell
     parser.add_argument("-mu", "--mobility", action='store_true', help='Calculate the mobility') # Add an argument: mobility
-    args = parser.parse_args() # Parse the argument
+    parser.add_argument("-f", "--filename", type=str, help='Mobility calculation output name') # Add an argument: filename
     
     ut.print_start()
 
@@ -22,7 +22,13 @@ def main():
             run_matrix(None,args.mesh,args.supercell) # Calculate electron phonon coupling matrix
             ut.print_end()
         else:  
-            run_tlt_mobility()
+            
+            if args.filename is None:
+                run_tlt_mobility() # Calculate the mobility
+                ut.print_end()
+            else:
+                run_tlt_mobility(args.filename)
+                ut.print_end()
 
     except KeyboardInterrupt:
         ut.print_error("Interrupted by user!")
