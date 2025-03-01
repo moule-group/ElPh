@@ -199,11 +199,11 @@ class Mobility():
         weights = np.exp(-factor * energies * beta)  # Compute Boltzmann factors
         partition = np.sum(weights)
     
-        operatorx = np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,plane[0]] * h_ij, eigenvecs))
-        operatorx -= np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,plane[0]] * h_ij, eigenvecs)).T
+        operatorx = np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[0]] * h_ij, eigenvecs))
+        operatorx -= np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[0]] * h_ij, eigenvecs)).T
 
-        operatory = np.matmul(eigenvecs.T, np.matmul( dist_vecs[:,:,plane[1]]* h_ij, eigenvecs))
-        operatory -= np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,plane[1]] * h_ij, eigenvecs)).T
+        operatory = np.matmul(eigenvecs.T, np.matmul( dist_vecs[:,:,self.plane[1]]* h_ij, eigenvecs))
+        operatory -= np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[1]] * h_ij, eigenvecs)).T
 
         eng_diff = energies[:, None] - energies[None, :]
 
