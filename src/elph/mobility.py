@@ -65,7 +65,7 @@ class Mobility():
         for a in range(self.nx):
             for b in range(self.ny):
                 for c in range(self.nz):
-                    positions[count:(count + n_in_cell),] = atoms + [a, b, c]
+                    positions[count:(count + n_in_cell),] = self.atoms + [a, b, c]
                     count += n_in_cell
         return positions
 
