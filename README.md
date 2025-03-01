@@ -31,11 +31,25 @@ For installing Catnip (ChArge TraNsfer Integral Package), please refer to https:
 
 # Usage:
 
+## Non Local Electron Phonon Coupling
+
 First step: Use visualize.py to identify the numbering of molecules, there are 3 molecules need to identify. The order of the numbering is shown in the figure.
 
 Second step: Prepare input files in the folder: cif file of materials; FORCE_SETS from Phonopy simulation (8x8x8 grids); phonopy_disp.yaml from Phonopy simulation; scripts.
 
 Third step: Run elph (provide the numbering of three monomers) to return electron phonon coupling parameter for further research.
+
+```
+elph -m n1 n2 n3
+```
+
+
+## Transient Localization Theory Charge Carrier Mobility
+
+```
+elph -mu
+```
+
 
 # Theory:
 This will divide into 2 parts. First part is transfer integral J and the second part is electron phonon coupling parameter g.
