@@ -101,13 +101,13 @@ class Mobility():
         interaction_matrix (np.array): The interaction matrix
         dist_vecs (np.array): The distance vectors array
         """
-        positions = generate_lattice() # Generate lattice
+        positions = self.generate_lattice() # Generate lattice
         lattice = np.dot(positions, self.lattice_vecs.T) 
     
         N = len(lattice) # number of molecules in supercell
     
         dist_vecs = lattice[:, None, :] - lattice[None, :, :] # Compute all pairwise distance vectors (dist_vecs.shape = (N,N,3))
-        dist_vecs = dist_pbc(dist_vecs, lattice_vectors) # apply PBC 
+        dist_vecs = self.dist_pbc(dist_vecs, lattice_vectors) # apply PBC 
     
         distances = np.linalg.norm(dist_vecs, axis=-1) # Compute Euclidean distance matrix
 
@@ -147,7 +147,7 @@ class Mobility():
         Return:
         H: Hamiltonian matrix
         """
-        _, interaction_matrix = interactions()
+        _, interaction_matrix = self.interactions()
         j_matrix = np.copy(interaction_matrix).astype(float) # Transfer integral matrix (J_ij)
         g_matrix = np.copy(interaction_matrix).astype(float) # Dynamic disorder matrix (in TLT, we treat this as static disorder)
 
@@ -188,13 +188,13 @@ class Mobility():
         lx2 (float): The localization length in x direction
         ly2 (float): The localization length in y direction
         """
-        dist_vecs, _ = interactions()
+        dist_vecs, _ = self.interactions()
         factor = -1
         if not self.hole: # If hole transport, it will transport at the top edge of the valence band, Boltzmann factor will be positive
             factor = 1
 
         beta = 1 / (k * jtoev * self.temp) # Boltzmann factor 
-        h_ij = hamiltonian() # Create Hamiltonian matrix
+        h_ij = self.hamiltonian() # Create Hamiltonian matrix
         energies, eigenvecs = np.linalg.eigh(h_ij) # Solve eigenvalues & eigenvectors
         weights = np.exp(-factor * energies * beta)  # Compute Boltzmann factors
         partition = np.sum(weights)
@@ -232,13 +232,13 @@ class Mobility():
         avg_lx2 (float): The average square localization length in x direction
         avg_ly2 (float): The average square localization length in y direction
         """
-        positions = generate_lattice()
-        dist_vecs, interaction_matrix = interactions()
+        positions = self.generate_lattice()
+        dist_vecs, interaction_matrix = self.interactions()
         avglx2_list = []
         avgly2_list = []
         for n in range(self.realizations):
-            h_ij = hamiltonian() # Create Hamiltonian every n (random distribution disorder)
-            lx2, ly2 = localization() # Calculation lx^2 and ly^2 
+            h_ij = self.hamiltonian() # Create Hamiltonian every n (random distribution disorder)
+            lx2, ly2 = self.localization() # Calculation lx^2 and ly^2 
             avglx2_list.append(lx2)
             avgly2_list.append(ly2)
 
@@ -261,7 +261,7 @@ class Mobility():
         mobilityy
         mobility_average
         """
-        avglx2, avgly2 = avg_localization()
+        avglx2, avgly2 = self.avg_localization()
         tau = hbar * jtoev / self.inverse_htau # unit: second
         mobilityx = 1e-16 * e * avg_lx2/ (2 * tau * k * self.temp) # Unit is cm^2/Vs
         mobilityy = 1e-16 * e * avg_ly2 / (2 * tau * k * self.temp)
