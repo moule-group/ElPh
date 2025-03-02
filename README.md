@@ -35,7 +35,7 @@ For installing Catnip (ChArge TraNsfer Integral Package), please refer to https:
 
 First step: Use visualize.py to identify the numbering of molecules, there are 3 molecules need to identify. The order of the numbering is shown in the figure.
 
-Second step: Prepare input files in the folder: cif file of materials; FORCE_SETS from Phonopy simulation (8x8x8 grids); phonopy_disp.yaml from Phonopy simulation; scripts.
+Second step: Prepare input files in the folder: cif file of materials; FORCE_SETS from Phonopy simulation; phonopy_disp.yaml from Phonopy simulation; scripts.
 
 Third step: Run elph (provide the numbering of three monomers) to return electron phonon coupling parameter for further research.
 
@@ -52,12 +52,26 @@ Prepare mobility.json file as the input, then run
 elph -mu
 ```
 
+## Arguments
+
+-q --mesh: Defining a mesh grid. (Defaults to [8,8,8])
+
+-m --mol: The numbering of molecule 1 2 and 3
+
+-s --supercell: The supercell matrix (Defaults to [2,2,2])
+
+-mu --mobility: Calculate the mobility
+
+-o --output: Mobility calculation output name (Defaults to tlt_mobility.json)
+
+
+
 
 # Theory:
-This will divide into 2 parts. First part is transfer integral J and the second part is electron phonon coupling parameter g.
+This will divide into 3 parts. First part is transfer integral J, the second part is electron phonon coupling parameter g and the last part is transient localization theory.
 
 ## Transfer integral J
-The method we use is called dimer projection method (DIPRO) (Note: Some people call it Fragment orbital Method (FO)), it is first proposed by D. Andrienko group in 2010 research paper. 
+The method we use is called dimer projection method (DIPRO) (Note: Some people call it Fragment orbital Method (FO)), it is proposed by D. Andrienko group in 2010 research paper. 
 Transfer integral between 2 molecules i and j:
 $J_{ij} = <i|H|j>$
 The reason why we cannot simply the equation above is because overlap matrix S is not 0 in molecular crystals. Therefore, we have to apply effective transfer integral
@@ -93,3 +107,5 @@ And $\frac{\partial x_{k}}{\partial Q_{I}}$ represent how each Cartesian coordin
 , where A is the amplitude (Defaults to 0.01 Angstrom), $N_{a}$ is the number of atoms in the supercell, $m_{j}$ is the mass of j-th atom. $r_{jl}$ is the position of the j-th atom in the l-th unit cell, $e_{j}$ is the j-th atom part of eigenvector, and $\phi$ is the phase.
 
 To evaluate $\nabla J_{ij}$, a displacements -0.01 Å and 0.01 Å for each direction (x,y,z) of the gradient have been employed.
+
+## Transient Localization Theory (TLT)

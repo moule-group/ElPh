@@ -94,3 +94,11 @@ folder/
 Phonopy modulation is used to create a crystal structure with displacements along normal modes at q-point in the specified supercell dimension. We use FORCE_SETS file from Phonopy simulation (Finite Displacement Method) to get mesh.yaml, which contains Phonon mode information. In 8x8x8 q-points, there are 128 exclusive q-points and 18432 phonon modes (frequency).
 
 At the end, we will get "ep_coupling.npz" file as the output we want.
+
+## Fourth stage: Mobility calculation using transient localization theory (TLT)
+
+In transient localization theory, one assumption is 2D transport (the other direction is negligible). Have to identify the plane and create a large enough supercell to get the converging mobility data.
+
+```
+elph -mu
+```
