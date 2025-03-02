@@ -125,6 +125,18 @@ class Mobility():
     
         # Get sign of displacement vectors
         signs = np.sign(dist_vecs)
+ 
+        #   (       *      *     *        ")
+        #   (                             ")
+        #   (   #      2#      3#         ")
+        #   (                             ")
+        #   (       *      1*    *        ")
+        #   (                             ")
+        #   (   #      #       #          ")
+
+        # 1 -> 2: interaction type 1 (Distance are equal but direction are opposite)
+        # 1 -> 3: interaction type 2
+        # 2 -> 3: interaction type 3
 
         # Define masks
         group1_mask = (signs[..., self.plane[0]] != signs[..., self.plane[1]])  # Opposite sign: (+,-) or (-,+)
