@@ -127,8 +127,8 @@ class Mobility():
         signs = np.sign(dist_vecs)
 
         # Define masks
-        group1_mask = (signs[..., self.plane[0]] == signs[..., self.plane[1]])  # Same sign: (+,+) or (-,-)
-        group2_mask = (signs[..., self.plane[0]] != signs[..., self.plane[1]])  # Opposite sign: (+,-) or (-,+)
+        group1_mask = (signs[..., self.plane[0]] != signs[..., self.plane[1]])  # Opposite sign: (+,-) or (-,+)
+        group2_mask = (signs[..., self.plane[0]] == signs[..., self.plane[1]])  # Same sign: (+,+) or (-,-)
 
         # Apply masks only to type 1 interactions
         interaction_matrix[type1_mask & group1_mask] = 1  # Keep type 1
