@@ -243,7 +243,7 @@ def create_displacement(delta=0.01):
             disp_atoms.set_positions(pos)
 	
             disp_name = f"disp_{na}_{vec}_{sign}"
-            os.makedirs(os.path.join(f'./displacements', disp_name),exist_ok=True)
+            os.makedirs(os.path.join(f'./displacements', disp_name), exist_ok=True)
             os.chdir(f'./displacements/{disp_name}')
             ase.io.write(disp_name+'.xyz', disp_atoms)
             os.chdir('../..')
@@ -294,14 +294,17 @@ def run_catnip(path1, path2, path3, path4, path5, path6):
     path6 (str): Path to the third Gaussian .log file (pair)
     ###################################################
     Returns:
-    output.decode('ascii').split()[-2]: Transfer integral J_eff (Effective Transfer Integral) for the system, units is eV
-    output.decode('ascii').split()[-13]: Transfer integral J for the system, units is eV
+    output.decode('ascii').split()[-2]: Transfer integral J_eff,ab (Effective Transfer Integral) for the system, units is eV
+    output.decode('ascii').split()[-13]: Transfer integral J_ab for the system, units is eV
+    output.decode('ascii').split()[-10]: Onsite energy for molecule A, units is eV
+    output.decode('ascii').split()[-7]: Onsite energy for molecule B, units is eV
+    output.decode('ascii').split()[-4]: Overlap integral (S_ab), units is eV
     """
     
     cmd = f"calc_J -p_1 {path1} -p_2 {path2} -p_P {path3} -l_1 {path4} -l_2 {path5} -l_P {path6}"
     output = subprocess.check_output(cmd, shell=True)
     
-    return output.decode('ascii').split()[-2], output.decode('ascii').split()[-13]  # return J_eff and J
+    return output.decode('ascii').split()[-2], output.decode('ascii').split()[-13], output.decode('ascii').split()[-10], output.decode('ascii').split()[-7], output.decode('ascii').split()[-4]
 
 def get_deri_Jmatrix(j_list, delta=0.01):
     """ Calculate derivative of transfer integral J and return as electron-phonon coupling matrix 

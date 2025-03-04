@@ -39,10 +39,11 @@ Second step: Prepare input files in the folder: cif file of materials; FORCE_SET
 
 Third step: Run elph (provide the numbering of three monomers) to return electron phonon coupling parameter for further research.
 
+Note: We consider 2D plane (high mobility plane of organic semiconductors) and only pick 3 nearest neighbors in this 2D plane. The 3 numbering monomers will be pair A (monomer 1 and 2); pair B (monomer 1 and 3); pair C (monomer 2 and 3), pair A and pair B will be twisted pairs and pair C will be translated pairs (the shorter lattice parameter in 2D plane).
+
 ```
 elph -m n1 n2 n3
 ```
-
 
 ## Transient Localization Theory Charge Carrier Mobility
 
@@ -109,3 +110,8 @@ And $\frac{\partial x_{k}}{\partial Q_{I}}$ represent how each Cartesian coordin
 To evaluate $\nabla J_{ij}$, a displacements -0.01 Å and 0.01 Å for each direction (x,y,z) of the gradient have been employed.
 
 ## Transient Localization Theory (TLT)
+
+The mobility equation is shown below:
+$\mu =  \frac{e}{kT} \frac{L^2_{x(y)}}{2\tau}$
+
+where $\tau$ is the relaxation time, $L^2_{x(y)}$ is squared localization length, e is the charge, T is the temperature in K, k is the Boltzmann constant. The mobility unit is in $\frac{cm^2}{Vs}$
