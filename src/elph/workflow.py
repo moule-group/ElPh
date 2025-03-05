@@ -66,9 +66,9 @@ def run_j0(mol_list):
             os.chdir(main_path)
 
         # Calculate J 
-        jA_eff, jA, e1a, e2a, s12 = ep.run_catnip('./1/1.pun', './2/2.pun', './A/A.pun', './1/mo.log', './2/mo.log', './A/mo.log')
-        jB_eff, jB, e1b, e3b, s13 = ep.run_catnip('./1/1.pun', './3/3.pun', './B/B.pun', './1/mo.log', './3/mo.log', './B/mo.log')
-        jC_eff, jC, e2c, e3c, s23 = ep.run_catnip('./2/2.pun', './3/3.pun', './C/C.pun', './2/mo.log', './3/mo.log', './C/mo.log')
+        jA_eff, jA = ep.run_catnip('./1/1.pun', './2/2.pun', './A/A.pun', './1/mo.log', './2/mo.log', './A/mo.log')
+        jB_eff, jB = ep.run_catnip('./1/1.pun', './3/3.pun', './B/B.pun', './1/mo.log', './3/mo.log', './B/mo.log')
+        jC_eff, jC = ep.run_catnip('./2/2.pun', './3/3.pun', './C/C.pun', './2/mo.log', './3/mo.log', './C/mo.log')
 
         print(f' Done calculation on J_A = {jA_eff} eV ')
         print(f' Done calculation on J_B = {jB_eff} eV ')
@@ -132,7 +132,7 @@ def run_disp_j():
             offset = len(molecules) # This is because the for loop below only loop through molecule, and number of atoms in dimer is 2 times of a molecule
         
             for na, vec, sign in ep.get_displacement(molecules):  
-                j_1, j12_1, e1_1, e2_1, s12_1 = ep.run_catnip(f'./{mol_1}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
+                j_1, _ = ep.run_catnip(f'./{mol_1}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
                                     f'./{mol_2}/{mol_2}.pun', 
                                     f'./{key}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
                                     f'./{mol_1}/displacements/disp_{na}_{vec}_{sign}/mo.log', 
@@ -140,7 +140,7 @@ def run_disp_j():
                                     f'./{key}/displacements/disp_{na}_{vec}_{sign}/mo.log')
                 j_list.append(j_1)
         
-                j_2, j12_2, e1_2, e2_2, s12_2 = ep.run_catnip(f'./{mol_1}/{mol_1}.pun', 
+                j_2, _ = ep.run_catnip(f'./{mol_1}/{mol_1}.pun', 
                                     f'./{mol_2}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
                                     f'./{key}/displacements/disp_{na+offset}_{vec}_{sign}/disp_{na+offset}_{vec}_{sign}.pun', 
                                     f'./{mol_1}/mo.log', 
