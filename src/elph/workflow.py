@@ -19,7 +19,7 @@ def getGeometry(path):
     Return:
     file: The structure file in the path
     """
-    file = glob.glob(path + "/*.cif") +  glob.glob(path + "/*.vasp") + glob.glob(path + "/*.xyz")
+    file = glob.glob(path + "/*.cif") +  glob.glob(path + "/*.vasp") + + glob.glob(path + "/CONTCAR") + glob.glob(path + "/*.xyz")
     if len(file) == 0:
         raise FileNotFoundError
     
@@ -42,7 +42,7 @@ def run_j0(mol_list):
   
     ########################################################################
     Return:
-    j_A, j_B, j_C as j_0.json file
+    j_A, j_B, j_C as j0.json and j0_eff.json file
     """    
     main_path = os.getcwd()
     json_file = glob.glob(os.path.join(main_path, 'j0_eff.json'))
@@ -83,15 +83,6 @@ def run_j0(mol_list):
               'B':f'{jB}',
               'C':f'{jC}'
              }
-
-        e1a_eff = 0.5 * ((e1a+e2a) - 2*jA*s12 + (e1a-e2a)*(1-s12**2)**0.5) / (1-s12**2)
-        e2a_eff = 0.5 * ((e1a+e2a) - 2*jA*s12 - (e1a-e2a)*(1-s12**2)**0.5) / (1-s12**2)
-
-        e1b_eff = 0.5 * ((e1b+e3b) - 2*jB*s13 + (e1b-e3b)*(1-s13**2)**0.5) / (1-s13**2)
-        e3b_eff = 0.5 * ((e1b+e3b) - 2*jB*s13 - (e1b-e3b)*(1-s13**2)**0.5) / (1-s13**2)
-
-        e2c_eff = 0.5 * ((e2c+e3c) - 2*jC*s23 + (e2c-e3c)*(1-s23**2)**0.5) / (1-s23**2)
-        e3c_eff = 0.5 * ((e2c+e3c) - 2*jC*s23 - (e2c-e3c)*(1-s23**2)**0.5) / (1-s23**2)
     
         with open('j0_eff.json', 'w', encoding='utf-8') as f1:
             json.dump(j0_eff, f1, ensure_ascii=False, indent=4)
