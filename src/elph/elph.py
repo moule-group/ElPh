@@ -271,7 +271,7 @@ def mol_orbital(opt, bset, atoms=None):
         if opt == 1:
             atoms.calc = Gaussian(mem='16GB',
                                   nprocshared=12,
-                                  label='opt',
+                                  label='mo',
                                   save=None,
                                   method='b3lyp',
                                   basis=f'{bset}', # can use 6-31G* 
