@@ -308,7 +308,6 @@ def run_catnip(path1, path2, path3, path4, path5, path6):
     output.decode('ascii').split()[-2]: Transfer integral J_eff,ab (Effective Transfer Integral) for the system, units is eV
     output.decode('ascii').split()[-13]: Transfer integral J_ab for the system, units is eV
     """
-    
     cmd = f"calc_J -p_1 {path1} -p_2 {path2} -p_P {path3} -l_1 {path4} -l_2 {path5} -l_P {path6}"
     output = subprocess.check_output(cmd, shell=True)
     

@@ -39,7 +39,7 @@ Second step: Prepare input files in the folder: cif file of materials; FORCE_SET
 
 Third step: Run elph (provide the numbering of three monomers) to return electron phonon coupling parameter for further research.
 
-Note: We consider 2D plane (high mobility plane of organic semiconductors) and only pick 3 nearest neighbors in this 2D plane. The 3 numbering monomers will be pair A (monomer 1 and 2); pair B (monomer 1 and 3); pair C (monomer 2 and 3), pair A and pair B will be twisted pairs and pair C will be translated pairs (the shorter lattice parameter in 2D plane).
+Note: We consider 2D plane (high mobility plane of organic semiconductors) and only pick 3 nearest neighbors in this 2D plane. The 3 numbering monomers will be pair A (monomer 1 and 2); pair B (monomer 1 and 3); pair C (monomer 2 and 3), pair A and pair B will be transversed pairs and pair C will be parallel pairs (the shorter lattice parameter in 2D plane).
 
 ```
 elph -m n1 n2 n3
@@ -59,13 +59,19 @@ elph -mu
 
 -m --mol: The numbering of molecule 1 2 and 3
 
+-opt --optimization: If specified, Gaussian will run optimization when calculating with $J_{0}$
+
+-b --basis: Gaussian basis sets (Defaults to 3-21G*)
+
 -s --supercell: The supercell matrix (Defaults to [2,2,2])
 
--mu --mobility: Calculate the mobility
+-mu --mobility: If specified, elph will calculate the mobility
 
 -o --output: Mobility calculation output name (Defaults to tlt_mobility.json)
 
+## mobility.json
 
+In order to run mobility calculation, there are variables need to be specified. Please see the example here. [View Example File](example/mobility.json)
 
 
 # Theory:
