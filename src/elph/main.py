@@ -28,7 +28,7 @@ def main():
                 run_tlt_mobility() # Calculate the mobility
                 ut.print_end()
             else:
-                run_tlt_mobility(args.output)
+                run_tlt_mobility(output=args.output)
                 ut.print_end()
 
     except KeyboardInterrupt:
