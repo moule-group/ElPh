@@ -25,10 +25,13 @@ def getGeometry(path):
     
     return file[0]
 
-def run_j0(mol_list):
+def run_j0(mol_list, opt, basis):
     """ Main function for running Gaussian and Catnip to get transfer integral J_0
     Args:
     mol_list (list): After visualization, you need to specify 3 molecules. The order is: 1st; 2nd; 3rd
+    opt (str): Gaussian optimization
+    basis (str): Gaussian basis sets
+    ########################################################################
     Here is the example 2D figure below, 1 and 2 are molecules. You have to reference the numbering of Ref; and 3 molecules with * sign.
     ----------------------------
           *      *     *
@@ -62,7 +65,7 @@ def run_j0(mol_list):
         path_list = ['./1','./2','./3','./A','./B','./C']
         for path in path_list:
             os.chdir(path)
-            ep.mol_orbital()
+            ep.mol_orbital(opt=opt, bset=basis) # Run Gaussian to get molecular orbitals
             os.chdir(main_path)
 
         # Calculate J 
@@ -90,7 +93,7 @@ def run_j0(mol_list):
         with open('j0.json', 'w', encoding='utf-8') as f2:
             json.dump(j0, f2, ensure_ascii=False, indent=4)
 
-def run_disp_j():
+def run_disp_j(basis):
     """ Main function for running Gaussian and Catnip to get transfer integral J for displaced molecules and dimers
     Return:
     j_list (list): The transfer integral list for displaced molecules and dimers!
@@ -110,7 +113,7 @@ def run_disp_j():
         os.chdir(path)  
         for d in dirs:
             os.chdir(d)
-            ep.mol_orbital() # Run Gaussian to get molecular orbitals
+            ep.mol_orbital(opt=0, bset=basis) # Run Gaussian to get molecular orbitals
             os.chdir(os.pardir)
         os.chdir(main_path)
         

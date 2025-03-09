@@ -8,9 +8,11 @@ def main():
     """
     parser = argparse.ArgumentParser() # Create the parser
     parser.add_argument("-q", "--mesh", type=int, default=[8,8,8], nargs=3, help='Defining a mesh grid. (Defaults to [8,8,8]') # Add an argument: mesh
+    parser.add_argument("-b", "--basis", type=str, default='3-21G*', help='Gaussian basis sets') # Add an argument: basis
     parser.add_argument("-m", "--mol", type=int, nargs=3, help='The numbering of molecule 1 2 and 3') # Add an argument: mol
     parser.add_argument("-s", "--supercell", type=int, nargs=3, default=[2,2,2], help='The supercell matrix (Defaults to [2,2,2])') # Add an argument: supercell
     parser.add_argument("-mu", "--mobility", action='store_true', help='Calculate the mobility') # Add an argument: mobility
+    parser.add_argument("-opt", "--optimization", action='store_true', help='Running Gaussian with optimization') # Add an argument: optimization
     parser.add_argument("-o", "--output", type=str, default=None, help='Mobility calculation output name') # Add an argument: filename
     args = parser.parse_args() # Parse the argument
     
@@ -18,8 +20,14 @@ def main():
 
     try:
         if not args.mobility:
-            run_j0(args.mol) # Create monomers and dimers and calculate J_0 of dimers.
-            run_disp_j() # Create displaced dimers and calculate J_ij of dimers.
+            if args.opt is True:
+                opt = 1
+                run_j0(args.mol, opt, args.basis) # Run Gaussian with optimization
+            else:
+                opt = 0
+                run_j0(args.mol, opt, args.basis) # Run Gaussian without optimization
+            
+            run_disp_j(args.basis) # Create displaced dimers and calculate J_ij of dimers.
             run_matrix(None,args.mesh,args.supercell) # Calculate electron phonon coupling matrix
             ut.print_end()
         else:  

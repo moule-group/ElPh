@@ -250,11 +250,12 @@ def create_displacement(delta=0.01):
 	   
         os.chdir(main_path) 
 
-def mol_orbital(atoms=None):
+def mol_orbital(opt, bset, atoms=None):
     """ Run Gaussian to compute the molecular orbitals for the system
     Args:
+    opt (int): Run Gaussian to optimize the structure, Defaults to 0 (without optimization)
+    bset (str): Basis set for Gaussian calculation (Defaults to 3-21G*)
     atoms (ASE atoms object): optional, if not specified, it will run getGeometry 
-    opt (Boolean): Run Gaussian to optimize the structure, defaults to False.
     ########################################
     Return:
     .pun file which contains molecular orbital for the cacluation later for J 
@@ -266,17 +267,27 @@ def mol_orbital(atoms=None):
         atoms = ase.io.read(geometry)
     
     pun_files = glob.glob('*.pun')
-
     if not pun_files: # If there is no Gaussian output, it will run Gaussian
-        atoms.calc = Gaussian(mem='16GB',
-                              nprocshared=12,
-                              label='mo',
-                              save=None,
-                              method='b3lyp',
-                              basis='3-21G*', # should use 6-31G* 
-                              scf='tight',
-                              pop='full',
-                              extra='nosymm punch=mo iop(3/33=1)') # iop(3/33=1) output one-electron integrals to log file.
+        if opt == 1:
+            atoms.calc = Gaussian(mem='16GB',
+                                  nprocshared=12,
+                                  label='opt',
+                                  save=None,
+                                  method='b3lyp',
+                                  basis=f'{bset}', # can use 6-31G* 
+                                  scf='tight',
+                                  pop='full',
+                                  extra='opt nosymm punch=mo iop(3/33=1)')
+        else:
+            atoms.calc = Gaussian(mem='16GB',
+                                  nprocshared=12,
+                                  label='mo',
+                                  save=None,
+                                  method='b3lyp',
+                                  basis=f'{bset}', # can use 6-31G* 
+                                  scf='tight',
+                                  pop='full',
+                                  extra='nosymm punch=mo iop(3/33=1)') # iop(3/33=1) output one-electron integrals to log file.
 
         atoms.get_potential_energy()
         os.rename('fort.7', os.path.basename(path) + '.pun')
