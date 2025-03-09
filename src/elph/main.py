@@ -20,7 +20,7 @@ def main():
 
     try:
         if not args.mobility:
-            if args.opt is True:
+            if args.optimization is True:
                 opt = 1
                 run_j0(args.mol, opt, args.basis) # Run Gaussian with optimization
             else:
