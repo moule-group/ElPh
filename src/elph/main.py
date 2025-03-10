@@ -12,7 +12,6 @@ def main():
     parser.add_argument("-m", "--mol", type=int, nargs=3, help='The numbering of molecule 1 2 and 3') # Add an argument: mol
     parser.add_argument("-s", "--supercell", type=int, nargs=3, default=[2,2,2], help='The supercell matrix (Defaults to [2,2,2])') # Add an argument: supercell
     parser.add_argument("-mu", "--mobility", action='store_true', help='Calculate the mobility') # Add an argument: mobility
-    parser.add_argument("-opt", "--optimization", action='store_true', help='Running Gaussian with optimization') # Add an argument: optimization
     parser.add_argument("-o", "--output", type=str, default=None, help='Mobility calculation output name') # Add an argument: filename
     args = parser.parse_args() # Parse the argument
     
@@ -20,18 +19,12 @@ def main():
 
     try:
         if not args.mobility:
-            if args.optimization is True:
-                opt = 1
-                run_j0(args.mol, opt, args.basis) # Run Gaussian with optimization
-            else:
-                opt = 0
-                run_j0(args.mol, opt, args.basis) # Run Gaussian without optimization
-            
+            run_j0(args.mol, args.basis) # Run Gaussian with optimization 
             run_disp_j(args.basis) # Create displaced dimers and calculate J_ij of dimers.
-            run_matrix(None,args.mesh,args.supercell) # Calculate electron phonon coupling matrix
+            run_matrix(args.mesh,args.supercell) # Calculate electron phonon coupling matrix
             ut.print_end()
-        else:  
-            
+        
+        else:  # Calculate the mobility
             if args.output is None:
                 run_tlt_mobility() # Calculate the mobility
                 ut.print_end()

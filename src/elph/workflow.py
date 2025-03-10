@@ -25,11 +25,10 @@ def getGeometry(path):
     
     return file[0]
 
-def run_j0(mol_list, opt, basis):
+def run_j0(mol_list, basis):
     """ Main function for running Gaussian and Catnip to get transfer integral J_0
     Args:
     mol_list (list): After visualization, you need to specify 3 molecules. The order is: 1st; 2nd; 3rd
-    opt (str): Gaussian optimization
     basis (str): Gaussian basis sets
     ########################################################################
     Here is the example 2D figure below, 1 and 2 are molecules. You have to reference the numbering of Ref; and 3 molecules with * sign.
@@ -65,7 +64,7 @@ def run_j0(mol_list, opt, basis):
         path_list = ['./1','./2','./3','./A','./B','./C']
         for path in path_list:
             os.chdir(path)
-            ep.mol_orbital(opt=opt, bset=basis) # Run Gaussian to get molecular orbitals
+            ep.mol_orbital(bset=basis) # Run Gaussian to get molecular orbitals
             os.chdir(main_path)
 
         # Calculate J 
@@ -155,13 +154,12 @@ def run_disp_j(basis):
             np.savez_compressed(key + '_disp_J.npz', **data)
             print(f" Successfully create {key}_disp_J.npz file which saves J_ij!!! ")
         
-def run_matrix(natoms,mesh,sc):
+def run_matrix(mesh,sc):
     """ Calculate electron phonon coupling matrix and then connect with each phonon mode (from Phonopy)
     Dependency: 
     phonon(mesh), this function is to get phonon modes
     ########################################################
     Args:
-    natoms (int): Number of atoms of unitcell, Defaults to None
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
     sc (list): The supercell matrix. (Defaults to [2,2,2])
     """
