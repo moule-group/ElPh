@@ -12,6 +12,7 @@ dependencies = [
     "cclib>=1.8.1",
     "networkx>=3.4.2",
     "phonopy>=2.37.0",
+    "qutip>=5.1.1",
 ]
 
 [project.scripts]

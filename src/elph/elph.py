@@ -5,6 +5,7 @@
 # Cannot use .xyz file (since .xyz file gives you many atoms outside unitcell)
 
 import ase.io
+import cclib
 import json
 import glob
 import os
@@ -301,6 +302,23 @@ def run_catnip(path1, path2, path3, path4, path5, path6):
     output = subprocess.check_output(cmd, shell=True)
     
     return output.decode('ascii').split()[-2], output.decode('ascii').split()[-13]
+
+def onsiteE(homo):
+    """ Use cclib to parse the Gaussian log file and get the onsite energy for the system.
+    Args:
+    homo (bootlean): Defaults to True, most OSCs are p-type (hole carrier transport in HOMO)
+    """
+    filename = 'mo.log'
+    data = cclib.io.ccread(filename)
+    moenergy = data.moenergies[0]
+    if homo:
+        homo_index = data.homos 
+        onsite_eng = moenergy[homo_index]
+    else:
+        lumo_index = data.homos + 1
+        onsite_eng = moenergy[lumo_index]
+
+    return onsite_eng
 
 def get_deri_Jmatrix(j_list, delta=0.01):
     """ Calculate derivative of transfer integral J and return as electron-phonon coupling matrix 

@@ -153,6 +153,26 @@ def run_disp_j(basis):
             data = {'J_ij': j_list} 
             np.savez_compressed(key + '_disp_J.npz', **data)
             print(f" Successfully create {key}_disp_J.npz file which saves J_ij!!! ")
+
+def run_disp_E():
+    """ Main function for parse Gaussian output to get onsite energy of displaced monomer.
+    """
+    if not os.path.exists(f"{main_path}/A_disp_E.npz"): # Check whether it is necessary to run cclib to parse onsite energy
+        e_list = [] # The list to save onsite energy
+        path_list = ['./1/displacements']
+        for path in path_list:
+            root, dirs, files = next(os.walk(path)) # Get the directory under each displacements/ folder
+            os.chdir(path)  
+            for d in dirs:
+                os.chdir(d)
+                onsite_eng = ep.onsiteE(homo=True) # Get onsite energy
+                e_list.append(onsite_eng)
+                os.chdir(os.pardir)
+            os.chdir(main_path)
+    
+        data = {'onsiteE': e_list} 
+        np.savez_compressed('onsite_disp_E.npz', **data)
+        print(f" Successfully create onsite_disp_E.npz file which saves onsite energy!!! ")
         
 def run_matrix(mesh,sc):
     """ Calculate electron phonon coupling matrix and then connect with each phonon mode (from Phonopy)

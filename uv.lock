@@ -89,6 +89,7 @@ dependencies = [
     { name = "cclib" },
     { name = "networkx" },
     { name = "phonopy" },
+    { name = "qutip" },
 ]
 
 [package.metadata]
@@ -97,6 +98,7 @@ requires-dist = [
     { name = "cclib", specifier = ">=1.8.1" },
     { name = "networkx", specifier = ">=3.4.2" },
     { name = "phonopy", specifier = ">=2.37.0" },
+    { name = "qutip", specifier = ">=5.1.1" },
 ]
 
 [[package]]
@@ -410,6 +412,27 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fe/0f/25911a9f080464c59fab9027482f822b86bf0608957a5fcc6eaac85aa515/PyYAML-6.0.2-cp313-cp313-musllinux_1_1_x86_64.whl", hash = "sha256:68ccc6023a3400877818152ad9a1033e3db8625d899c72eacb5a668902e4d652", size = 751597 },
     { url = "https://files.pythonhosted.org/packages/14/0d/e2c3b43bbce3cf6bd97c840b46088a3031085179e596d4929729d8d68270/PyYAML-6.0.2-cp313-cp313-win32.whl", hash = "sha256:bc2fa7c6b47d6bc618dd7fb02ef6fdedb1090ec036abab80d4681424b84c1183", size = 140527 },
     { url = "https://files.pythonhosted.org/packages/fa/de/02b54f42487e3d3c6efb3f89428677074ca7bf43aae402517bc7cca949f3/PyYAML-6.0.2-cp313-cp313-win_amd64.whl", hash = "sha256:8388ee1976c416731879ac16da0aff3f63b286ffdd57cdeb95f3f2e085687563", size = 156446 },
+]
+
+[[package]]
+name = "qutip"
+version = "5.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/61/0b/c27eaa406bf55ed777697bb1ab15ace9bc72daa160bc99ce78b1838e53f1/qutip-5.1.1.tar.gz", hash = "sha256:2f6556a6d359dadb6ffbd9c31dd6f29aec6afd145749e3079401dac892ece39b", size = 6588149 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/cf/4caa7b218564a3c7ef993355a19745a84a26d4d3c43094a6bf9197ad6d27/qutip-5.1.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:063b9cefb56309177f1689c3b3c560dfde2c1c578c2940c715b3d6114041f44a", size = 10335904 },
+    { url = "https://files.pythonhosted.org/packages/d2/0b/a33d795b90ad84b3e44dd0380c68b67132563391581d57acc3295f33ab52/qutip-5.1.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:3a93e1a3810501e36defa3e6fd993eefbc83d92eab151ce348b07c99fb14d061", size = 10069984 },
+    { url = "https://files.pythonhosted.org/packages/d2/f1/32a1c08bbdd7f619170263331e2d257e973eaa25d8162ed822cab8a85fe7/qutip-5.1.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3ae2d4df316eab5c2543f6ce1fa6f973cd58db65c887c226cc352fe329482510", size = 29645567 },
+    { url = "https://files.pythonhosted.org/packages/a8/0a/a5d1e0089402d884896ccd50c444f9e1ebfebad0cd48eac68019dbe1d14d/qutip-5.1.1-cp312-cp312-win_amd64.whl", hash = "sha256:a75d9aa5792c0250883100f901390d032c9b101ed9e0fe64173b7e549c4e007a", size = 9816406 },
+    { url = "https://files.pythonhosted.org/packages/aa/32/a6556140da84e9c3858c13adc6491b5485b591f1d8d7c1c07c347070f029/qutip-5.1.1-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:03999392d4b91e8eacd183798502e2d0efb79ca8ee0151d6cb0504d2fa0478f0", size = 10285097 },
+    { url = "https://files.pythonhosted.org/packages/03/63/01b31ee60b57d3f91cd798fda53ecbd5839b98f04a97de8e18d85c10e270/qutip-5.1.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:8c3a1d49094abc9f582b2660d45b03ceffdafa983e2738e38c9d7df16637f147", size = 10024418 },
+    { url = "https://files.pythonhosted.org/packages/5b/01/896e452fd6a839be32b4262323805d820fd43131f18e1c87c9c727a07a06/qutip-5.1.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:88d05d5a42af70a424c14f11f258772ca663791abc099a7b663802a014384fd7", size = 29468615 },
+    { url = "https://files.pythonhosted.org/packages/c8/75/b5ae82500032ab2fbe173391c69c81742e39090e80f24243e5e09e8ba1a8/qutip-5.1.1-cp313-cp313-win_amd64.whl", hash = "sha256:4402f650a1eb0e6e28be58175e70cab7c917054af3a2fac3d46c7f985f196d75", size = 9803827 },
 ]
 
 [[package]]
