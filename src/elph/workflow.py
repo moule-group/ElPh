@@ -112,7 +112,7 @@ def run_disp_j(basis):
         os.chdir(path)  
         for d in dirs:
             os.chdir(d)
-            ep.mol_orbital(opt=0, bset=basis) # Run Gaussian to get molecular orbitals
+            ep.mol_orbital(bset=basis) # Run Gaussian to get molecular orbitals
             os.chdir(os.pardir)
         os.chdir(main_path)
         
