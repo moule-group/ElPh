@@ -223,27 +223,28 @@ def run_matrix(mesh,sc):
     epcB = np.einsum('ij,kij->k',matrix_B, displacement_B)  # We get coefficient g_IJ here           
     epcC = np.einsum('ij,kij->k',matrix_C, displacement_C)      
                                                                     
-    ep_coupling = {'A':epcA,
+    epc = {'A':epcA,
                    'B':epcB,
                    'C':epcC}
     
     # Save the electron-phonon coupling matrix asp a numpy .npz file.
-    np.savez_compressed('ep_coupling' + '.npz', **ep_coupling)
+    np.savez_compressed('ep_coupling' + '.npz', **epc)
 
     #### This part is for mode projection (the shape of the epc matrix is different) ####
     epcA_cartesian = np.einsum('ij,kij->kj',matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
     epcB_cartesian = np.einsum('ij,kij->kj',matrix_B, displacement_B)          
     epcC_cartesian = np.einsum('ij,kij->kj',matrix_C, displacement_C)       
+
     epc_cartesian = {'A':epcA_cartesian,
                      'B':epcB_cartesian,
                      'C':epcC_cartesian}
-    np.savez_compressed('ep_coupling_cartesian' + '.npz', **epc_cartesian)
-    ####    
+
+    np.savez_compressed('ep_coupling_cartesian' + '.npz', **epc_cartesian)  
 
     # Calculate the variance of the electron-phonon coupling matrix
-    variA = ep.variance(freqs, ep_couplingA, 298) # Variance for dimer A
-    variB = ep.variance(freqs, ep_couplingB, 298) # Variance for dimer B
-    variC = ep.variance(freqs, ep_couplingC, 298) # Variance for dimer C
+    variA = ep.variance(freqs, epcA, 298) # Variance for dimer A
+    variB = ep.variance(freqs, epcB, 298) # Variance for dimer B
+    variC = ep.variance(freqs, epcC, 298) # Variance for dimer C
 
     variance = {'A':variA,
                 'B':variB,
