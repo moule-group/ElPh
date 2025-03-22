@@ -88,7 +88,7 @@ def phonon(natoms,mesh,sc):
     mod = mod[index]
 
     np.savetxt("frequencies.txt", freq, header="Phonon frequencies (THz)") # save frequencies to txt file
-    np.savetxt("eigvectors.txt", eigvecs, header="Eigenvectors") # save eigenvectors
+    np.savez_compressed('eigvecs' + '.npz', eigvecs=eigvecs)   # save eigenvectors
     print(" Finish Modulation using Phonopy ")
     
     return mod, freq
