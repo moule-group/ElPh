@@ -68,9 +68,9 @@ def phonon(natoms,mesh,sc):
     phonon = phonopy.load('phonopy_disp.yaml')
     phonon.run_mesh(mesh,with_eigenvectors=True)
     mesh_data = phonon.get_mesh_dict()
-    freq = mesh_data['frequencies']
-    qpts = mesh_data['qpoints']
-    eigvecs = mesh_data['eigenvectors']
+    freq = mesh_data['frequencies'].flatten() # Shape is (nqpts*natoms*3,)
+    qpts = mesh_data['qpoints'] 
+    eigvecs = mesh_data['eigenvectors'] # Shape is (nqpts,natoms*3,natoms*3)
     a=sc[0]
     b=sc[1]
     c=sc[2]
