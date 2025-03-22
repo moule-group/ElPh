@@ -70,7 +70,9 @@ def phonon(natoms,mesh,sc):
     mesh_data = phonon.get_mesh_dict()
     freq = mesh_data['frequencies'].flatten()
     qpts = mesh_data['qpoints']
-    eigenv = mesh_data['eigenvectors']
+    eigvecs = mesh_data['eigenvectors']
+    shape = eigvecs.shape
+    eigvecs_reshape = eigvecs.reshape(shape[0]*shape[1], shape[2])
     a=sc[0]
     b=sc[1]
     c=sc[2]
@@ -84,11 +86,11 @@ def phonon(natoms,mesh,sc):
 
     index = np.where(freq>0)
     freq = freq[index]
-    eigenv = eigenv[index]
+    eigvecs_reshape = eigvecs_reshape[index]
     mod = mod[index]
 
     np.savetxt("frequencies.txt", freq, header="Phonon frequencies (THz)") # save frequencies to txt file
-    np.savetxt("eigvectors.txt", eigenv, header="Eigenvectors") # save eigenvectors
+    np.savetxt("eigvectors.txt", eigvecs_reshape, header="Eigenvectors") # save eigenvectors
     print(" Finish Modulation using Phonopy ")
     
     return mod, freq
