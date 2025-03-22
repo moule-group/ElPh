@@ -74,7 +74,7 @@ def phonon(natoms,mesh,sc):
     a=sc[0]
     b=sc[1]
     c=sc[2]
-    mod = np.zeros((int(freq.shape[0]*qpts.shape[0]),natoms*a*b*c,3))
+    mod = np.zeros((int(freq.shape[0]*qpts.shape[0]),natoms*a*b*c,3)) # modulations
 
     mode = [[q, band_index, 1, 0.0] for q in qpts for band_index in range(natoms*3)]
  
@@ -84,9 +84,11 @@ def phonon(natoms,mesh,sc):
 
     index = np.where(freq>0)
     freq = freq[index]
+    eigenv = eigenv[index]
     mod = mod[index]
 
-    np.savetxt("frequencies.txt", freq, header="Phonon frequencies (THz)")
+    np.savetxt("frequencies.txt", freq, header="Phonon frequencies (THz)") # save frequencies to txt file
+    np.savetxt("eigvectors.txt", eigenv, header="Eigenvectors") # save eigenvectors
     print(" Finish Modulation using Phonopy ")
     
     return mod, freq
