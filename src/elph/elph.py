@@ -84,7 +84,6 @@ def phonon(natoms,mesh,sc):
 
     index = np.where(freq>0)
     freq = freq[index]
-    eigvecs = eigvecs[index]
     mod = mod[index]
 
     np.savetxt("frequencies.txt", freq, header="Phonon frequencies (THz)") # save frequencies to txt file
