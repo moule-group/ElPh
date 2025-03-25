@@ -253,7 +253,7 @@ def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
 
     mobility = {'Mobility on X direction (cm^/Vs)': round(mobilityx, 3), 
                 'Mobility on Y direction (cm^/Vs)': round(mobilityy, 3),
-                'Average mobility ': round(mobility_average, 3)
+                'Average mobility': round(mobility_average, 3)
     }
     
     with open(f'{output}.json', 'w', encoding='utf-8') as f:
