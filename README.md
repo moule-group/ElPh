@@ -45,29 +45,37 @@ Note: We consider 2D plane (high mobility plane of organic semiconductors) and o
 elph -m n1 n2 n3
 ```
 
+## SVD Phonon Modes Projection
+
+Prerequisite: Finish non-local epc simulation first.
+
+```
+elph -w 2 -svd 128
+```
+
 ## Transient Localization Theory Charge Carrier Mobility
 
 Prepare mobility.json file as the input, then run
 
 ```
-elph -mu
+elph -w 3
 ```
 
 ## Arguments
+
+-w --workflow: Workflow selection (1: non local electron phonon coupling 2: SVD phonon mode projection 3: TLT mobility)
 
 -q --mesh: Defining a mesh grid. (Defaults to [8,8,8])
 
 -m --mol: The numbering of molecule 1 2 and 3
 
--opt --optimization: If specified, Gaussian will run optimization when calculating with $J_{0}$
-
 -b --basis: Gaussian basis sets (Defaults to 3-21G*)
 
 -s --supercell: The supercell matrix (Defaults to [2,2,2])
 
--mu --mobility: If specified, elph will calculate the mobility
-
 -o --output: Mobility calculation output name (Defaults to tlt_mobility.json)
+
+-svd --svdqpts: Number of qpoints that SVD projection will apply (Defaults to 1)
 
 ## mobility.json
 
