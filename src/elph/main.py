@@ -12,7 +12,7 @@ def main():
     parser.add_argument("-m", "--mol", type=int, nargs=3, help='The numbering of molecule 1 2 and 3') # Add an argument: mol
     parser.add_argument("-s", "--supercell", type=int, nargs=3, default=[2,2,2], help='The supercell matrix (Defaults to [2,2,2])') # Add an argument: supercell
     parser.add_argument("-o", "--output", type=str, default=None, help='Mobility calculation output name') # Add an argument: filename
-    parser.add_argument("-svd", "--svdqpts", type=int, dafault=1, help='Number of qpoints that SVD projection will apply') # Add an argument: svd
+    parser.add_argument("-svd", "--svdqpts", type=int, default=1, help='Number of qpoints that SVD projection will apply') # Add an argument: svd
     parser.add_argument("-w", "--workflow", type=int, default=1, help='Type in the workflow number to run corresponding simulation') # Add an argument: workflow
     args = parser.parse_args() # Parse the argument
     
