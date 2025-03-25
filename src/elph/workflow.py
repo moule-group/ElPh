@@ -266,7 +266,27 @@ def run_svd_projection(qpts):
     atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
     natoms = len(atoms)
     num_modes = 3 * natoms
-    svd.svd_projection(num_modes, qpts)
+    svd_epcA, svd_epcB, svd_epcC, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes, qpts)
+
+    svd_epc = {'A':svd_epcA,
+               'B':svd_epcB,
+               'C':svd_epcC,
+               'freq_sys':f_sys,
+               'freq_bath':f_bath,
+               'coeff_sys':coeff_sys,
+               'coeff_bath':coeff_bath}
+    
+    np.savez_compressed('svd_epc' + '.npz', **svd_epc) 
+
+    svd_variA = ep.variance(f_sys, svd_epcA, 298) # Variance for dimer A
+    svd_variB = ep.variance(f_sys, svd_epcB, 298) # Variance for dimer B
+    svd_variC = ep.variance(f_sys, svd_epcC, 298) # Variance for dimer C
+
+    svd_variance = {'A':svd_variA,
+                    'B':svd_variB,
+                    'C':svd_variC}
+
+    np.savez_compressed('svd_variance' + '.npz', **svd_variance)
     
    
     

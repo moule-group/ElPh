@@ -99,15 +99,8 @@ def svd_projection(num_modes, qpts, threshold=1e-9):
     svd_epcC3 = epc[:,2] @ coeff_sys[2,:]
     svd_epcC = np.array([svd_epcC1, svd_epcC2, svd_epcC3])
 
-    svd_epc = {'A':svd_epcA,
-               'B':svd_epcB,
-               'C':svd_epcC,
-               'freq_sys':f_sys,
-               'freq_bath':f_bath,
-               'coeff_sys':coeff_sys,
-               'coeff_bath':coeff_bath}
+    return svd_epcA, svd_epcB, svd_epcC, f_sys, f_bath, coeff_sys, coeff_bath
     
-    np.savez_compressed('svd_epc' + '.npz', **svd_epc) 
 
 
     
