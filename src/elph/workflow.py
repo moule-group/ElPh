@@ -7,6 +7,7 @@ import sys
 import yaml
 import elph.utils as ut
 import elph.elph as ep
+import elph.svdprojection as svd
 from elph.mobility import Mobility
 
 def getGeometry(path):
@@ -240,6 +241,7 @@ def run_matrix(mesh,sc):
                      'C':epcC_cartesian}
 
     np.savez_compressed('ep_coupling_cartesian' + '.npz', **epc_cartesian)  
+    np.savez_compressed('ep_coupling' + '.npz', **ep_coupling) 
 
     # Calculate the variance of the electron-phonon coupling matrix
     variA = ep.variance(freqs, epcA, 298) # Variance for dimer A
@@ -269,5 +271,14 @@ def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
     with open(f'{output}.json', 'w', encoding='utf-8') as f:
         json.dump(mobility, f, ensure_ascii=False, indent=4)
 
+def run_svd_projection(qpts):
+    """
+    Run SVD projection using numpy
+    """
+    atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
+    natoms = len(atoms)
+    num_modes = 3 * natoms
+    svd.svd_projection(num_modes, qpts)
+    
    
     
