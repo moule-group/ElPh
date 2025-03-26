@@ -184,7 +184,11 @@ def run_matrix(mesh,sc):
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
     sc (list): The supercell matrix. (Defaults to [2,2,2])
     """
-    ####### Calculate J matrix #########
+    ####### Calculate J_ii matrix (onsite energy) #########
+    elist = np.load('onsite_disp_E.npz')['onsiteE']
+    ematrix = ep.get_deri_Jmatrix(elist)
+
+    ####### Calculate J_ij matrix #########
     jlist_A = np.load('A_disp_J.npz')['J_ij'] # - +
     jlist_B = np.load('B_disp_J.npz')['J_ij'] # - +
     jlist_C = np.load('C_disp_J.npz')['J_ij'] # - + 
@@ -197,6 +201,7 @@ def run_matrix(mesh,sc):
     with open('monomer.json', 'r') as j:
         mapping = list(json.load(j).values()) # The numbering of atoms for dimers
         
+    mapping_mol = mapping[0] # molecule 1
     mapping_A = mapping[0] + mapping[1] # molecule 1 + molecule 2
     mapping_B = mapping[0] + mapping[2] # molecule 1 + molecule 3
     mapping_C = mapping[1] + mapping[2] # molecule 2 + molecule 3
@@ -205,12 +210,16 @@ def run_matrix(mesh,sc):
     atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
     natoms = len(atoms) # Number of atoms in the supercell
     displacement, freqs = ep.phonon(natoms,mesh,sc) # Run phonopy modulation to create eigendisplacements list 
-    # the shape of displacement_list is [ phonon modes(number of q point * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
+    # the shape of displacement_list is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
     
+    displacement_mol = np.zeros((displacement.shape[0],len(mapping_mol),3))
     displacement_A = np.zeros((displacement.shape[0],len(mapping_A),3))
     displacement_B = np.zeros((displacement.shape[0],len(mapping_B),3)) 
     displacement_C = np.zeros((displacement.shape[0],len(mapping_C),3))
     
+    for i, m in enumerate(mapping_mol): # i is the index of the molecule, a is the atom index of the supercell
+        displacement_mol[:, i, :] = displacement[:,m,:]
+
     for i, a in enumerate(mapping_A): # i is the index of the dimer, a is the atom index of the supercell
         displacement_A[:, i, :] = displacement[:,a,:]  # Assign the corresponding displacement
 
@@ -220,11 +229,13 @@ def run_matrix(mesh,sc):
     for i, c in enumerate(mapping_C):
         displacement_C[:, i, :] = displacement[:,c,:]  # Assign the corresponding displacement
     
+    epc_mol = np.einsum('ij,kij->k',ematrix, displacement_mol)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
     epcA = np.einsum('ij,kij->k',matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
     epcB = np.einsum('ij,kij->k',matrix_B, displacement_B)  # We get coefficient g_IJ here           
     epcC = np.einsum('ij,kij->k',matrix_C, displacement_C)      
                                                                     
-    epc = {'A':epcA,
+    epc = {'local':epc_mol,
+           'A':epcA,
            'B':epcB,
            'C':epcC}
     
@@ -232,11 +243,15 @@ def run_matrix(mesh,sc):
     np.savez_compressed('ep_coupling' + '.npz', **epc)
 
     # Calculate the variance of the electron-phonon coupling matrix
-    variA = ep.variance(freqs, epcA, 298) # Variance for dimer A
-    variB = ep.variance(freqs, epcB, 298) # Variance for dimer B
-    variC = ep.variance(freqs, epcC, 298) # Variance for dimer C
+    qpts = displacement.shape[0] / (natoms * 3)
 
-    variance = {'A':variA,
+    vari_mol = ep.variance(freqs, epc_mol, qpts, 298) # Variance for molecule
+    variA = ep.variance(freqs, epcA, qpts, 298) # Variance for dimer A
+    variB = ep.variance(freqs, epcB, qpts, 298) # Variance for dimer B
+    variC = ep.variance(freqs, epcC, qpts, 298) # Variance for dimer C
+
+    variance = {'local':vari_mol,
+                'A':variA,
                 'B':variB,
                 'C':variC}
 

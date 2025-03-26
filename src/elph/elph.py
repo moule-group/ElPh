@@ -348,16 +348,17 @@ def get_deri_Jmatrix(j_list, delta=0.01):
 
     return matrix
 
-def variance(freqs, g, temp):
+def variance(freqs, g, qpts, temp):
     """ Calculate the variance of the transfer integral J
     Apply the formula: Var(J) = <J^2> - <J>^2
     Args:
     freqs: The numpy array of phonon frequencies
     g: electron-phonon coupling matrix
-    temp: Temperture in Kelvin
+    qpts (int): total kpts used in phonon calculation
+    temp (float): Temperture in Kelvin
     """
     var = (g**2/2)/np.tanh((hbar*freqs*1e12)/(2*k*temp)) # freqs in Phonopy is THz, so need to convert to Hz
-
+    var /= qpts # Normalization over the number of q points 
     return var
 
         

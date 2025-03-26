@@ -17,6 +17,7 @@ class Mobility():
     plane (list): The 2D plane for charge transport (ex: yz plane is [1,2])
     interaction_types (list): Specific interaction distances to consider
     translation_dist (float): One of the lattice parameter will be consider into interaction
+    j_ii (list): Intra-molecular transfer integral (Onsite energy) (ex: J_ii)
     j_ij (list): Inter-molecular transfer integral (ex: J_a, J_b, J_c)
     sigma (list): nonlocal electronic phonon coupling (dynamic disorder) (ex: sigma_a, sigma_b, sigma_c)
     temp (float): Temperature in Kelvin (Defaults to 300)
@@ -25,7 +26,7 @@ class Mobility():
     realizations (int): Number of realizations for average calculation (Defaults to 250)
     mob_file (str): The json file containing the mobility parameters (Defaults to "mobility.json")
     """
-    def __init__(self, atoms=None, nx=1, ny=1, nz=1, lattice_vecs=None, plane=None, interaction_types=None, translation_dist=None, j_ij=None, sigma=None, temp=300.0, inverse_htau=5e-3, hole=True,realizations=250, 
+    def __init__(self, atoms=None, nx=1, ny=1, nz=1, lattice_vecs=None, plane=None, interaction_types=None, translation_dist=None, j_ii=None, j_ij=None, sigma_ii=None, sigma_ij=None, temp=300.0, inverse_htau=5e-3, hole=True,realizations=250, 
                  mob_file="mobility.json"):
         
         if mob_file:
@@ -40,8 +41,10 @@ class Mobility():
             self.plane = config.get("plane", plane)
             self.interaction_types = config.get("interaction_types", interaction_types)
             self.translation_dist = config.get("translation_dist", translation_dist)
+            self.j_ii = config.get("j_ii", j_ii)
             self.j_ij = config.get("j_ij", j_ij)
-            self.sigma = config.get("sigma", sigma)
+            self.sigma_ii = config.get("sigma_ii", sigma_ii)
+            self.sigma_ij = config.get("sigma_ij", sigma_ij)
             self.temp = config.get("temp", temp)  # FIXED LINE
             self.inverse_htau = config.get("inverse_htau", inverse_htau)
             self.hole = config.get("hole", hole)
@@ -102,7 +105,7 @@ class Mobility():
         dist_vecs (np.array): The distance vectors array
         """
         positions = self.generate_lattice() # Generate lattice
-        lattice = np.dot(positions, self.lattice_vecs.T) 
+        lattice = np.dot(positions, self.lattice_vecs.T) # supercell lattice points
     
         N = len(lattice) # number of molecules in supercell
     
@@ -160,30 +163,35 @@ class Mobility():
         H: Hamiltonian matrix
         """
         _, interaction_matrix = self.interactions()
-        j_matrix = np.copy(interaction_matrix).astype(float) # Transfer integral matrix (J_ij)
-        g_matrix = np.copy(interaction_matrix).astype(float) # Dynamic disorder matrix (in TLT, we treat this as static disorder)
+        Hij_matrix = np.copy(interaction_matrix).astype(float) # Transfer integral matrix (J_ij)
+        gij_matrix = np.copy(interaction_matrix).astype(float) # Dynamic disorder matrix (in TLT, we treat this as static disorder)
 
+        # Onsite energy matrix (H_ii)
+        Hii_matrix = np.diag([self.j_ii]*interaction_matrix.shape[0])
+        gii_matrix = np.diag([self.sigma_ii]*interaction_matrix.shape[0])
+
+        # Inter-molecular transfer integral matrix (H_ij)
         j1 = self.j_ij[0]
         j2 = self.j_ij[1]
         j3 = self.j_ij[2]
 
-        j_matrix[j_matrix==1] = j1
-        j_matrix[j_matrix==2] = j2
-        j_matrix[j_matrix==3] = j3
+        Hij_matrix[Hij_matrix==1] = j1
+        Hij_matrix[Hij_matrix==2] = j2
+        Hij_matrix[Hij_matrix==3] = j3
 
-        s1 = self.sigma[0]
-        s2 = self.sigma[1]
-        s3 = self.sigma[2]
+        s1 = self.sigma_ij[0]
+        s2 = self.sigma_ij[1]
+        s3 = self.sigma_ij[2]
 
-        g_matrix[g_matrix==1] = s1
-        g_matrix[g_matrix==2] = s2
-        g_matrix[g_matrix==3] = s3
+        gij_matrix[gij_matrix==1] = s1
+        gij_matrix[gij_matrix==2] = s2
+        gij_matrix[gij_matrix==3] = s3
 
         #np.random.seed(42)  # Ensures same random values each time
         gaussian_matrix = np.random.normal(0, 1, size=interaction_matrix.shape)
         gaussian_matrix = np.tril(gaussian_matrix) + np.tril(gaussian_matrix, -1).T
     
-        H = j_matrix + g_matrix * gaussian_matrix
+        H = Hii_matrix + Hij_matrix + gii_matrix * gaussian_matrix + gij_matrix * gaussian_matrix
 
         return H
 
