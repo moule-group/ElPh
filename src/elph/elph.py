@@ -44,13 +44,13 @@ def getGeometry(path):
     
     return file[0]
     
-def phonon(natoms,mesh,sc):
+def phonon(natoms,mesh,supercell_matrix):
     """ Obtain FORCE_CONSTANTS file for specific calculator from Phonopy and return normal mode frequencies;
         Run Phonopy modulation to create atomic displacement and return modulation and frequency.
     Args:
     natoms (int): Number of atoms in the system (Defaults to None)
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
-    sc (list): Need define a supercell size. (Defaults to [2,2,2])
+    supercell_matrix (tuple): Need define a supercell size. 
     #########################################
     Output:
     phonopy_params.yaml file
@@ -71,6 +71,7 @@ def phonon(natoms,mesh,sc):
     freq = mesh_data['frequencies'].flatten() # Shape is (nqpts*natoms*3,)
     qpts = mesh_data['qpoints'] 
     eigvecs = mesh_data['eigenvectors'] # Shape is (nqpts,natoms*3,natoms*3)
+    sc = list(supercell_matrix)
     a=sc[0]
     b=sc[1]
     c=sc[2]
@@ -115,10 +116,11 @@ def neighbor(atoms):
 
     return molecules
 
-def unwrap_molecule_dimer(structure_path, mol1, mol2, mol3):
+def unwrap_molecule_dimer(structure_path, supercell_matrix, mol1, mol2, mol3):
     """ Get single molecule and molecular pairs (dimer) files.
     Args:
     structure_path (str): structure file path
+    supercell_martix (tuple): supercell size
     mol1: The numbering of first neighbor molecule
     mol2: The numbering of second neighbor molecule
     mol3: The numbering of third neighbor molecule (translation of center molecule)
@@ -127,7 +129,7 @@ def unwrap_molecule_dimer(structure_path, mol1, mol2, mol3):
     dimer_{A}.xyz, where A is the labeling (3 files)
     """
     atoms = ase.io.read(structure_path) # Load structure
-    atoms *= (2,2,2) # Supercell
+    atoms *= supercell_matrix # Supercell
     
     # Group atoms by their molecule index
     neighbors = neighbor(atoms) 

@@ -26,10 +26,11 @@ def getGeometry(path):
     
     return file[0]
 
-def run_j0(mol_list, basis):
+def run_j0(mol_list, supercell_matrix, basis):
     """ Main function for running Gaussian and Catnip to get transfer integral J_0
     Args:
     mol_list (list): After visualization, you need to specify 3 molecules. The order is: 1st; 2nd; 3rd
+    supercell_matrix (tuple): The supercell matrix
     basis (str): Gaussian basis sets
     ########################################################################
     Here is the example 2D figure below, 1 and 2 are molecules. You have to reference the numbering of Ref; and 3 molecules with * sign.
@@ -49,7 +50,7 @@ def run_j0(mol_list, basis):
     """    
     main_path = os.getcwd()
     json_file = glob.glob(os.path.join(main_path, 'j0_eff.json'))
-    xyz_file = glob.glob(os.path.join(main_path,'1', 'monomer_1.xyz'))
+    xyz_file = glob.glob(os.path.join(main_path, '1', 'monomer_1.xyz'))
     main_path = os.getcwd() # Main directory which contain all subfolders
     if not json_file: # If j_0.json is not exists, run the following simulation
         try:
@@ -60,7 +61,7 @@ def run_j0(mol_list, basis):
                 sys.exit(1)  # Exit the script with an error
 
         if not xyz_file:
-            ep.unwrap_molecule_dimer(geometry, mol_list[0], mol_list[1], mol_list[2]) # Unwrap the crystal to get single molecule and dimers
+            ep.unwrap_molecule_dimer(geometry, supercell_matrix, mol_list[0], mol_list[1], mol_list[2]) # Unwrap the crystal to get single molecule and dimers
         
         path_list = ['./1','./2','./3','./A','./B','./C']
         for path in path_list:
@@ -158,6 +159,7 @@ def run_disp_j(basis):
 def run_disp_E():
     """ Main function for parse Gaussian output to get onsite energy of displaced monomer.
     """
+    main_path = os.getcwd()
     if not os.path.exists(f"{main_path}/A_disp_E.npz"): # Check whether it is necessary to run cclib to parse onsite energy
         e_list = [] # The list to save onsite energy
         path_list = ['./1/displacements']
