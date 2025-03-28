@@ -38,7 +38,7 @@ def svd_projection(num_modes, qpts, threshold=1e-9):
     print(f"Frequency shape is {freq.shape}")
 
     # Load epcoupling 
-    cp = np.load('ep_coupling.npz')
+    cp = np.load('svd_ep_coupling.npz')
     epc_mol = cp['local'][0:num_modes*qpts]
     epcA = cp['A'][0:num_modes*qpts]
     epcB = cp['B'][0:num_modes*qpts]
