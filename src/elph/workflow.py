@@ -172,7 +172,7 @@ def run_disp_E(is_homo):
             e_list.append(onsite_eng1)
             e_list.append(onsite_eng2)
             os.chdir(main_path)
-    
+
         data = {'onsiteE': e_list} 
         np.savez_compressed('onsite_disp_E.npz', **data)
         print(f" Successfully create onsite_disp_E.npz file which saves onsite energy!!! ")
@@ -187,7 +187,7 @@ def run_matrix(mesh,sc):
     sc (list): The supercell matrix. (Defaults to [2,2,2])
     """
     ####### Calculate J_ii matrix (onsite energy) #########
-    elist = np.load('onsite_disp_E.npz')['onsiteE']
+    elist = np.load('onsite_disp_E.npz')['onsiteE'].flatten()
     ematrix = ep.get_deri_Jmatrix(elist)
 
     ####### Calculate J_ij matrix #########
