@@ -165,12 +165,9 @@ def run_disp_E(is_homo):
         e_list = [] # The list to save onsite energy
         molecules = ase.io.read(f'{main_path}/1/monomer_1.xyz')
         for na, vec, sign in ep.get_displacement(molecules):  
-            path1 = f'{main_path}/1/displacements/disp_{na}_{vec}_{1}/'
-            path2 = f'{main_path}/1/displacements/disp_{na}_{vec}_{-1}/'
-            onsite_eng1 = ep.onsiteE(path=path1, homo=is_homo) # Get onsite energy
-            onsite_eng2 = ep.onsiteE(path=path2, homo=is_homo)
-            e_list.append(onsite_eng1)
-            e_list.append(onsite_eng2)
+            path = f'{main_path}/1/displacements/disp_{na}_{vec}_{sign}/'
+            onsite_eng = ep.onsiteE(path=path, homo=is_homo) # Get onsite energy
+            e_list.append(onsite_eng)
             os.chdir(main_path)
 
         data = {'onsiteE': e_list} 
@@ -231,10 +228,10 @@ def run_matrix(mesh,sc):
     for i, c in enumerate(mapping_C):
         displacement_C[:, i, :] = displacement[:,c,:]  # Assign the corresponding displacement
     
-    epc_mol = np.einsum('ij,kij->k',ematrix, displacement_mol)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
-    epcA = np.einsum('ij,kij->k',matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
-    epcB = np.einsum('ij,kij->k',matrix_B, displacement_B)  # We get coefficient g_IJ here           
-    epcC = np.einsum('ij,kij->k',matrix_C, displacement_C)      
+    epc_mol = np.einsum('ij,kij->k', ematrix, displacement_mol)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
+    epcA = np.einsum('ij,kij->k', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
+    epcB = np.einsum('ij,kij->k', matrix_B, displacement_B)  # We get coefficient g_IJ here           
+    epcC = np.einsum('ij,kij->k', matrix_C, displacement_C)      
                                                                     
     epc = {'local':epc_mol,
            'A':epcA,
