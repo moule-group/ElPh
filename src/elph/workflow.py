@@ -277,6 +277,9 @@ def run_svd_projection(qpts):
     """
     Run SVD projection using numpy
     """
+    print(" Running phonon modes projections using SVD ... ")
+
+    main_path = os.getcwd()
     atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
     natoms = len(atoms)
     num_modes = 3 * natoms
