@@ -39,10 +39,11 @@ def svd_projection(num_modes, qpts, threshold=1e-9):
 
     # Load epcoupling 
     cp = np.load('ep_coupling.npz')
+    epc_mol = cp['local'][0:num_modes*qpts]
     epcA = cp['A'][0:num_modes*qpts]
     epcB = cp['B'][0:num_modes*qpts]
     epcC = cp['C'][0:num_modes*qpts]
-    epc = epcA+epcB+epcC
+    epc = epc_mol+epcA+epcB+epcC
     print(f"EPC shape is {epc.shape}")
 
     # Numpy SVD 

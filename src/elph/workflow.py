@@ -232,14 +232,25 @@ def run_matrix(mesh,sc):
     epcA = np.einsum('ij,kij->k', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
     epcB = np.einsum('ij,kij->k', matrix_B, displacement_B)  # We get coefficient g_IJ here           
     epcC = np.einsum('ij,kij->k', matrix_C, displacement_C)      
+
+    svd_epc_mol = np.einsum('ij,kij->kj', ematrix, displacement_mol)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
+    svd_epcA = np.einsum('ij,kij->kj', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
+    svd_epcB = np.einsum('ij,kij->kj', matrix_B, displacement_B)  # The shape here is k,3           
+    svd_epcC = np.einsum('ij,kij->kj', matrix_C, displacement_C)      
                                                                     
     epc = {'local':epc_mol,
            'A':epcA,
            'B':epcB,
            'C':epcC}
     
+    svd_epc = {'local':svd_epc_mol,
+               'A':svd_epcA,
+               'B':svd_epcB,
+               'C':svd_epcC}
+    
     # Save the electron-phonon coupling matrix asp a numpy .npz file.
     np.savez_compressed('ep_coupling' + '.npz', **epc)
+    np.savez_compressed('svd_ep_coupling' + '.npz', **svd_epc) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
 
     # Calculate the variance of the electron-phonon coupling matrix
     qpts = displacement.shape[0] / (natoms * 3)
