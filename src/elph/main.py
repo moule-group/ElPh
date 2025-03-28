@@ -14,6 +14,7 @@ def main():
     parser.add_argument("-o", "--output", type=str, default=None, help='Mobility calculation output name') # Add an argument: filename
     parser.add_argument("-svd", "--svdqpts", type=int, default=1, help='Number of qpoints that SVD projection will apply') # Add an argument: svd
     parser.add_argument("-w", "--workflow", type=int, default=1, help='Type in the workflow number to run corresponding simulation') # Add an argument: workflow
+    parser.add_argument("-homo", "--homo", type=str, default=True, help='P-type: HOMO; N-type: LUMO') # Add an argument: homo
     args = parser.parse_args() # Parse the argument
     
     ut.print_start()
@@ -22,7 +23,7 @@ def main():
         if args.workflow == 1: 
             run_j0(args.mol, args.supercell, args.basis) # Run Gaussian with optimization 
             run_disp_j(args.basis) # Create displaced dimers and calculate J_ij of dimers.
-            run_disp_E() # Collect energy for displaced molecules in the materials
+            run_disp_E(args.homo) # Collect energy for displaced molecules in the materials
             run_matrix(args.mesh,args.supercell) # Calculate electron phonon coupling matrix (including local and non-local part)
             ut.print_end()
 

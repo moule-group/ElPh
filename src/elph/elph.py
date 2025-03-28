@@ -306,12 +306,13 @@ def run_catnip(path1, path2, path3, path4, path5, path6):
     
     return output.decode('ascii').split()[-2], output.decode('ascii').split()[-13]
 
-def onsiteE(homo):
+def onsiteE(path, homo):
     """ Use cclib to parse the Gaussian log file and get the onsite energy for the system.
     Args:
+    path (str): The folder path of mo.log
     homo (bootlean): Defaults to True, most OSCs are p-type (hole carrier transport in HOMO)
     """
-    filename = 'mo.log'
+    filename = path + 'mo.log'
     data = cclib.io.ccread(filename)
     moenergy = data.moenergies[0]
     if homo:

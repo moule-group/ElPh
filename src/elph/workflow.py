@@ -132,7 +132,7 @@ def run_disp_j(basis):
             mol_2 = values[1] # molecule 2
         
             molecules = ase.io.read(f'{main_path}/{mol_1}/monomer_{mol_1}.xyz')
-            dimers = ase.io.read(f'{main_path}/{key}/dimer_{key}.xyz')
+            #dimers = ase.io.read(f'{main_path}/{key}/dimer_{key}.xyz')
             offset = len(molecules) # This is because the for loop below only loop through molecule, and number of atoms in dimer is 2 times of a molecule
         
             for na, vec, sign in ep.get_displacement(molecules):  
@@ -156,21 +156,21 @@ def run_disp_j(basis):
             np.savez_compressed(key + '_disp_J.npz', **data)
             print(f" Successfully create {key}_disp_J.npz file which saves J_ij!!! ")
 
-def run_disp_E():
+def run_disp_E(is_homo):
     """ Main function for parse Gaussian output to get onsite energy of displaced monomer.
+    is_homo (Bootlean): If materials is p-type, then homo is True (Defaults to True)
     """
     main_path = os.getcwd()
     if not os.path.exists(f"{main_path}/A_disp_E.npz"): # Check whether it is necessary to run cclib to parse onsite energy
         e_list = [] # The list to save onsite energy
-        path_list = ['./1/displacements']
-        for path in path_list:
-            root, dirs, files = next(os.walk(path)) # Get the directory under each displacements/ folder
-            os.chdir(path)  
-            for d in dirs:
-                os.chdir(d)
-                onsite_eng = ep.onsiteE(homo=True) # Get onsite energy
-                e_list.append(onsite_eng)
-                os.chdir(os.pardir)
+        molecules = ase.io.read(f'{main_path}/1/monomer_1.xyz')
+        for na, vec, sign in ep.get_displacement(molecules):  
+            path1 = f'{main_path}/1/displacements/disp_{na}_{vec}_{1}/'
+            path2 = f'{main_path}/1/displacements/disp_{na}_{vec}_{-1}/'
+            onsite_eng1 = ep.onsiteE(path=path1, homo=is_homo) # Get onsite energy
+            onsite_eng2 = ep.onsiteE(path=path2, homo=is_homo)
+            e_list.append(onsite_eng1)
+            e_list.append(onsite_eng2)
             os.chdir(main_path)
     
         data = {'onsiteE': e_list} 
