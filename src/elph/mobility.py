@@ -15,7 +15,7 @@ class Mobility():
     nz (int): indicating the number of times the crystal unit cell is repeated along the z coordinate axis.
     lattice_vecs (np.array): Unit cell lattice vectors
     plane (list): The 2D plane for charge transport (ex: yz plane is [1,2])
-    interaction_types (list): Specific interaction distances to consider
+    distances (list): Specific interaction distances to consider
     translation_dist (float): One of the lattice parameter will be consider into interaction
     j_ii (list): Intra-molecular transfer integral (Onsite energy) (ex: J_ii)
     j_ij (list): Inter-molecular transfer integral (ex: J_a, J_b, J_c)
@@ -26,7 +26,7 @@ class Mobility():
     realizations (int): Number of realizations for average calculation (Defaults to 250)
     mob_file (str): The json file containing the mobility parameters (Defaults to "mobility.json")
     """
-    def __init__(self, atoms=None, nx=1, ny=1, nz=1, lattice_vecs=None, plane=None, interaction_types=None, translation_dist=None, j_ii=None, j_ij=None, sigma_ii=None, sigma_ij=None, temp=300.0, inverse_htau=5e-3, hole=True,realizations=250, 
+    def __init__(self, atoms=None, nx=1, ny=1, nz=1, lattice_vecs=None, plane=None, distances=None, translation_dist=None, j_ii=None, j_ij=None, sigma_ii=None, sigma_ij=None, temp=300.0, inverse_htau=5e-3, hole=True,realizations=250, 
                  mob_file="mobility.json"):
         
         if mob_file:
@@ -39,7 +39,7 @@ class Mobility():
             self.nz = config.get("nz", nz)
             self.lattice_vecs = np.array(config.get("lattice_vecs", lattice_vecs))
             self.plane = config.get("plane", plane)
-            self.interaction_types = config.get("interaction_types", interaction_types)
+            self.distances = config.get("distances", distances)
             self.translation_dist = config.get("translation_dist", translation_dist)
             self.j_ii = config.get("j_ii", j_ii)
             self.j_ij = config.get("j_ij", j_ij)
@@ -97,7 +97,7 @@ class Mobility():
         postions (np.array): The positions of the atoms in the simulation cell
         lattice_vectors (np.array (2x2)): Unit cell lattice vectors
         plane (list): The 2D plane for charge transport (ex: yz plane is [1,2]
-        interaction_types (list): Specific interaction distances to consider
+        distances (list): Specific interaction distances to consider
         translation_dist (float): One of the lattice parameter will be consider into interaction
         ###########
         Returns:
@@ -115,7 +115,7 @@ class Mobility():
         distances = np.linalg.norm(dist_vecs, axis=-1) # Compute Euclidean distance matrix
 
         interaction_matrix = np.zeros((N, N), dtype=int)
-        for idx, d in enumerate(self.interaction_types, start=1):
+        for idx, d in enumerate(self.distances, start=1):
             interaction_matrix[np.isclose(distances, d, atol=1e-4)] = idx  # Assign type 1, 2, 3
 
         for i in range(N):
@@ -241,7 +241,7 @@ class Mobility():
         Args:
         positions (np.array): The positions of the atoms in the simulation cell
         lattice_vectors (np.array): Unit cell lattice vectors
-        interaction_types (list): Specific interaction distances to consider
+        distances (list): Specific interaction distances to consider
         j_ij (list): Inter-molecular transfer integral (J_a, J_b, J_c)
         sigma (list): dynamic disorder (sigma_a, sigma_b, sigma_c)
         translation_dist (float): One of the lattice parameter will be consider into interaction
