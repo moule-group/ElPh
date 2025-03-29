@@ -97,7 +97,7 @@ def run_j0(is_homo, mol_list, supercell_matrix, basis):
     if not e0_file:
         log_path = os.path.join(main_path, '1', 'mo.log')
         eng = ep.onsiteE(path=log_path, homo=is_homo) # Onsite energy
-        e0 = {'onsiteE':f'{eng}'}
+        e0 = {'onsiteE':f'{eng[0]}'}
         with open('e0.json', 'w', encoding='utf-8') as f3:
             json.dump(e0, f3, ensure_ascii=False, indent=4)
 
