@@ -312,7 +312,7 @@ def onsiteE(path, homo):
     path (str): The folder path of mo.log
     homo (bootlean): Defaults to True, most OSCs are p-type (hole carrier transport in HOMO)
     """
-    filename = path + 'mo.log'
+    filename = path
     data = cclib.io.ccread(filename)
     moenergy = data.moenergies[0]
     if homo:

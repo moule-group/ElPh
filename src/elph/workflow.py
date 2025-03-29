@@ -95,7 +95,7 @@ def run_j0(is_homo, mol_list, supercell_matrix, basis):
     
     e0_file = glob.glob(os.path.join(main_path, 'e0.json'))
     if not e0_file:
-        log_path = os.path.join(main_path, '1')
+        log_path = os.path.join(main_path, '1', 'mo.log')
         e0 = ep.onsiteE(path=log_path, homo=is_homo)
         with open('e0.json', 'w', encoding='utf-8') as f3:
             json.dump(e0, f3, ensure_ascii=False, indent=4)
@@ -171,8 +171,8 @@ def run_disp_E(is_homo):
         e_list = [] # The list to save onsite energy
         molecules = ase.io.read(f'{main_path}/1/monomer_1.xyz')
         for na, vec, sign in ep.get_displacement(molecules):  
-            path = f'{main_path}/1/displacements/disp_{na}_{vec}_{sign}/'
-            onsite_eng = ep.onsiteE(path=path, homo=is_homo) # Get onsite energy
+            log_path = os.path.join(main_path,'1','displacements',f'disp_{na}_{vec}_{sign}','mo.log')
+            onsite_eng = ep.onsiteE(path=log_path, homo=is_homo) # Get onsite energy
             e_list.append(onsite_eng)
             os.chdir(main_path)
 
