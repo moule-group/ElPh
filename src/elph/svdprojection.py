@@ -19,6 +19,8 @@ def svd_projection(num_modes, qpts, threshold=1e-9):
 
     Returns
     -------
+    svd_epcmol: ndarray
+        SVD of electron-phonon coupling matrix for the molecule.
     svd_epcA: ndarray
         SVD of electron-phonon coupling matrix for dimer A.
     svd_epcB: ndarray
@@ -33,6 +35,8 @@ def svd_projection(num_modes, qpts, threshold=1e-9):
         Coefficients of system phonon modes.
     coeff_bath : ndarray
         Coefficients of bath phonon modes.
+    qpts : 
+        Total number of qpts considering in the calculation (same number as the input variable)
     """
     freq = np.loadtxt('frequencies.txt')[0:num_modes*qpts]
     print(f"Frequency shape is {freq.shape}")
@@ -87,20 +91,24 @@ def svd_projection(num_modes, qpts, threshold=1e-9):
     print(f"Shape of system phonon modes coefficient {coeff_sys.shape}")
     print(f"Shape of bath phonon modes coefficient {coeff_bath.shape}")
 
-    svd_epcA1 = epc[:,0] @ coeff_sys[0,:] 
-    svd_epcA2 = epc[:,0] @ coeff_sys[1,:] 
-    svd_epcA3 = epc[:,0] @ coeff_sys[2,:] 
+    svd_epcmol1 = epc[:,1] @ coeff_sys[0,:] 
+    svd_epcmol2 = epc[:,1] @ coeff_sys[1,:] 
+    svd_epcmol3 = epc[:,1] @ coeff_sys[2,:] 
+    svd_epcmol = np.array([svd_epcmol1, svd_epcmol2, svd_epcmol3])
+    svd_epcA1 = epc[:,1] @ coeff_sys[0,:] 
+    svd_epcA2 = epc[:,1] @ coeff_sys[1,:] 
+    svd_epcA3 = epc[:,1] @ coeff_sys[2,:] 
     svd_epcA = np.array([svd_epcA1, svd_epcA2, svd_epcA3])
-    svd_epcB1 = epc[:,1] @ coeff_sys[0,:]
-    svd_epcB2 = epc[:,1] @ coeff_sys[1,:]
-    svd_epcB3 = epc[:,1] @ coeff_sys[2,:]
+    svd_epcB1 = epc[:,2] @ coeff_sys[0,:]
+    svd_epcB2 = epc[:,2] @ coeff_sys[1,:]
+    svd_epcB3 = epc[:,2] @ coeff_sys[2,:]
     svd_epcB = np.array([svd_epcB1, svd_epcB2, svd_epcB3])
-    svd_epcC1 = epc[:,2] @ coeff_sys[0,:]
-    svd_epcC2 = epc[:,2] @ coeff_sys[1,:]
-    svd_epcC3 = epc[:,2] @ coeff_sys[2,:]
+    svd_epcC1 = epc[:,3] @ coeff_sys[0,:]
+    svd_epcC2 = epc[:,3] @ coeff_sys[1,:]
+    svd_epcC3 = epc[:,3] @ coeff_sys[2,:]
     svd_epcC = np.array([svd_epcC1, svd_epcC2, svd_epcC3])
 
-    return svd_epcA, svd_epcB, svd_epcC, f_sys, f_bath, coeff_sys, coeff_bath
+    return svd_epcmol, svd_epcA, svd_epcB, svd_epcC, f_sys, f_bath, coeff_sys, coeff_bath, qpts
     
 
 
