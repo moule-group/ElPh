@@ -95,7 +95,7 @@ def run_j0(is_homo, mol_list, supercell_matrix, basis):
     
     e0_file = glob.glob(os.path.join(main_path, 'e0.json'))
     if not e0_file:
-        log_path = os.path.join(main_path, '1', 'mo.log')
+        log_path = os.path.join(main_path, '1')
         e0 = ep.onsiteE(path=log_path, homo=is_homo)
         with open('e0.json', 'w', encoding='utf-8') as f3:
             json.dump(e0, f3, ensure_ascii=False, indent=4)
