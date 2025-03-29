@@ -312,7 +312,7 @@ def run_svd_projection(qpts):
                'coeff_sys':coeff_sys,
                'coeff_bath':coeff_bath}
     
-    np.savez_compressed('svd_epc' + '.npz', **svd_epc) 
+    np.savez_compressed('svd_result' + '.npz', **svd_epc) 
 
     svd_variA = ep.variance(f_sys, svd_epcA, qpts, 298) # Variance for dimer A
     svd_variB = ep.variance(f_sys, svd_epcB, qpts, 298) # Variance for dimer B
