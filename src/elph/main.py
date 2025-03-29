@@ -21,10 +21,10 @@ def main():
 
     try:
         if args.workflow == 1: 
-            run_j0(args.mol, args.supercell, args.basis) # Run Gaussian with optimization 
+            run_j0(args.homo, args.mol, args.supercell, args.basis) # Run Gaussian with optimization 
             run_disp_j(args.basis) # Create displaced dimers and calculate J_ij of dimers.
             run_disp_E(args.homo) # Collect energy for displaced molecules in the materials
-            run_matrix(args.mesh,args.supercell) # Calculate electron phonon coupling matrix (including local and non-local part)
+            run_matrix(args.mesh, args.supercell) # Calculate electron phonon coupling matrix (including local and non-local part)
             ut.print_end()
 
         if args.workflow == 2: # Run the workflow 2 (need to finish workflow 1 first)

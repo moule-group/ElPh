@@ -26,7 +26,7 @@ def getGeometry(path):
     
     return file[0]
 
-def run_j0(mol_list, supercell_matrix, basis):
+def run_j0(is_homo, mol_list, supercell_matrix, basis):
     """ Main function for running Gaussian and Catnip to get transfer integral J_0
     Args:
     mol_list (list): After visualization, you need to specify 3 molecules. The order is: 1st; 2nd; 3rd
@@ -48,11 +48,10 @@ def run_j0(mol_list, supercell_matrix, basis):
     Return:
     j_A, j_B, j_C as j0.json and j0_eff.json file
     """    
-    main_path = os.getcwd()
-    json_file = glob.glob(os.path.join(main_path, 'j0_eff.json'))
-    xyz_file = glob.glob(os.path.join(main_path, '1', 'monomer_1.xyz'))
     main_path = os.getcwd() # Main directory which contain all subfolders
-    if not json_file: # If j_0.json is not exists, run the following simulation
+    j0_file = glob.glob(os.path.join(main_path, 'j0_eff.json'))
+    xyz_file = glob.glob(os.path.join(main_path, '1', 'monomer_1.xyz'))
+    if not j0_file: # If j_0.json is not exists, run the following simulation
         try:
             geometry = getGeometry(main_path) # Get the geometry file
 
@@ -93,6 +92,13 @@ def run_j0(mol_list, supercell_matrix, basis):
             
         with open('j0.json', 'w', encoding='utf-8') as f2:
             json.dump(j0, f2, ensure_ascii=False, indent=4)
+    
+    e0_file = glob.glob(os.path.join(main_path, 'e0.json'))
+    if not e0_file:
+        log_path = os.path.join(main_path, '1', 'mo.log')
+        e0 = ep.onsiteE(path=log_path, homo=is_homo)
+        with open('e0.json', 'w', encoding='utf-8') as f3:
+            json.dump(e0, f3, ensure_ascii=False, indent=4)
 
 def run_disp_j(basis):
     """ Main function for running Gaussian and Catnip to get transfer integral J for displaced molecules and dimers
