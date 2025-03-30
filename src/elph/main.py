@@ -1,4 +1,4 @@
-from elph.workflow import getGeometry, run_j0, run_disp_E, run_disp_j, run_matrix, run_tlt_mobility, run_svd_projection
+from elph.workflow import getGeometry, run_j0, run_disp_j, run_matrix, run_tlt_mobility, run_svd_projection
 import elph.utils as ut
 import argparse
 import sys

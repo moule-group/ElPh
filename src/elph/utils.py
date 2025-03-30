@@ -4,7 +4,7 @@ def print_start():
     """ printing the start of the DCS-Flow"""
     print(" ----------------------------------------------------------------- ")
     print(" Starting on Electron Phonon Coupling (ElPh) for Organic Semiconductors !!! ")
-    print(" ElPh code made by Moule Group at UC Davis (version: 0.1.2) ")
+    print(" ElPh code made by Moule Group at UC Davis (version: 0.1.3) ")
     print(" #########   $           $ ########   $        $  ")
     print(" $           $           $        $   $        $  ")
     print(" $########   $           $ #######    $########$  ")
