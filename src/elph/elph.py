@@ -181,22 +181,6 @@ def unwrap_molecule_dimer(structure_path, supercell_matrix, mol1, mol2, mol3):
     ase.io.write(name_dimerA, di1) 
     ase.io.write(name_dimerB, di2)
     ase.io.write(name_dimerC, di3)
-    
-    ########### Create atom mapping for electron-phonon coupling term (match phonons) ###########
-    #counter = 0
-    #atom_mapping = {}
-    #idx_1 = molecules[mol1-1]
-    #idx_2 = molecules[mol2-1]
-    #idx_3 = molecules[mol3-1]
-    
-    #idx_total = idx_1 + idx_2 + idx_3
-    
-    #for idx in idx_total:
-       # atom_mapping[idx] = counter
-       # counter += 1
-
-    #with open('atom_mapping.json', 'w') as f:
-       # f.write(json.dumps(OrderedDict(sorted(atom_mapping.items(), key=lambda t: t[1])), indent=2))
         
 def get_displacement(atoms):
     """ Get numbering of displaced atom, displacement direction (x,y,z) and sign (+,-) 
@@ -305,24 +289,6 @@ def run_catnip(path1, path2, path3, path4, path5, path6):
     output = subprocess.check_output(cmd, shell=True)
     
     return output.decode('ascii').split()[-2], output.decode('ascii').split()[-13]
-
-def onsiteE(path, homo):
-    """ Use cclib to parse the Gaussian log file and get the onsite energy for the system.
-    Args:
-    path (str): The folder path of mo.log
-    homo (bootlean): Defaults to True, most OSCs are p-type (hole carrier transport in HOMO)
-    """
-    filename = path
-    data = cclib.io.ccread(filename)
-    moenergy = data.moenergies[0]
-    if homo:
-        homo_index = data.homos 
-        onsite_eng = moenergy[homo_index]
-    else:
-        lumo_index = data.homos + 1
-        onsite_eng = moenergy[lumo_index]
-
-    return onsite_eng
 
 def get_deri_Jmatrix(j_list, delta=0.01):
     """ Calculate derivative of transfer integral J and return as electron-phonon coupling matrix 

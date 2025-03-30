@@ -43,11 +43,10 @@ def svd_projection(num_modes, qpts, threshold=1e-9):
 
     # Load epcoupling 
     cp = np.load('svd_ep_coupling.npz')
-    epc_mol = cp['local'][0:num_modes*qpts]
     epcA = cp['A'][0:num_modes*qpts]
     epcB = cp['B'][0:num_modes*qpts]
     epcC = cp['C'][0:num_modes*qpts]
-    epc = epc_mol+epcA+epcB+epcC
+    epc = epcA+epcB+epcC
     print(f"EPC shape is {epc.shape}")
 
     # Numpy SVD 
@@ -91,10 +90,6 @@ def svd_projection(num_modes, qpts, threshold=1e-9):
     print(f"Shape of system phonon modes coefficient {coeff_sys.shape}")
     print(f"Shape of bath phonon modes coefficient {coeff_bath.shape}")
 
-    svd_epcmol1 = epc_mol[:,0] @ coeff_sys[0,:] + epc_mol[:,1] @ coeff_sys[0,:] + epc_mol[:,2] @ coeff_sys[0,:] # epc_Xaxis + epc_Yaxis + epc_Zaxis
-    svd_epcmol2 = epc_mol[:,0] @ coeff_sys[1,:] + epc_mol[:,1] @ coeff_sys[1,:] + epc_mol[:,2] @ coeff_sys[1,:] 
-    svd_epcmol3 = epc_mol[:,0] @ coeff_sys[2,:] + epc_mol[:,1] @ coeff_sys[2,:] + epc_mol[:,2] @ coeff_sys[2,:] 
-    svd_epcmol = np.array([svd_epcmol1, svd_epcmol2, svd_epcmol3])
     svd_epcA1 = epcA[:,0] @ coeff_sys[0,:] + epcA[:,1] @ coeff_sys[0,:] + epcA[:,2] @ coeff_sys[0,:] 
     svd_epcA2 = epcA[:,0] @ coeff_sys[1,:] + epcA[:,1] @ coeff_sys[1,:] + epcA[:,2] @ coeff_sys[1,:] 
     svd_epcA3 = epcA[:,0] @ coeff_sys[2,:] + epcA[:,1] @ coeff_sys[2,:] + epcA[:,2] @ coeff_sys[2,:] 
@@ -108,6 +103,6 @@ def svd_projection(num_modes, qpts, threshold=1e-9):
     svd_epcC3 = epcC[:,0] @ coeff_sys[2,:] + epcC[:,1] @ coeff_sys[2,:] + epcC[:,2] @ coeff_sys[2,:]
     svd_epcC = np.array([svd_epcC1, svd_epcC2, svd_epcC3])
 
-    return svd_epcmol, svd_epcA, svd_epcB, svd_epcC, f_sys, f_bath, coeff_sys, coeff_bath, qpts
+    return svd_epcA, svd_epcB, svd_epcC, f_sys, f_bath, coeff_sys, coeff_bath, qpts
     
     
