@@ -71,15 +71,15 @@ def phonon(natoms,mesh,supercell_matrix):
     freq = mesh_data['frequencies'].flatten() # Shape is (nqpts*natoms*3,)
     qpts = mesh_data['qpoints'] 
     eigvecs = mesh_data['eigenvectors'] # Shape is (nqpts,natoms*3,natoms*3)
-    sc = list(supercell_matrix)
-    a=sc[0]
-    b=sc[1]
-    c=sc[2]
-    mod = np.zeros((int(freq.shape[0]*qpts.shape[0]),natoms*a*b*c,3)) # modulations
+    #sc = list(supercell_matrix)
+    #a=sc[0]
+    #b=sc[1]
+    #c=sc[2]
+    mod = np.zeros((int(freq.shape[0]*qpts.shape[0]),natoms,3)) # modulations
 
     mode = [[q, band_index, 1, 0.0] for q in qpts for band_index in range(natoms*3)]
  
-    phonon.run_modulations(dimension=(a,b,c),phonon_modes=mode) 
+    phonon.run_modulations(dimension=(1,1,1),phonon_modes=mode) 
     modulation, supercell = phonon.get_modulations_and_supercell()
     mod = np.real(modulation)
 
@@ -91,7 +91,7 @@ def phonon(natoms,mesh,supercell_matrix):
     np.savez_compressed('eigvecs' + '.npz', eigvecs=eigvecs)   # save eigenvectors
     print(" Finish Modulation using Phonopy ")
     
-    return mod, freq
+    return mod, freq, qpts
 
 def neighbor(atoms):
     """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
