@@ -225,14 +225,16 @@ def run_matrix(mesh,sc):
     # Calculate the variance of the electron-phonon coupling matrix
     qpts = displacement.shape[0] / (natoms * 3)
 
-    #vari_mol = ep.variance(freqs, epc_mol, qpts, 298) # Variance for molecule
-    variA = ep.variance(freqs, epcA, qpts, 298) # Variance for dimer A
-    variB = ep.variance(freqs, epcB, qpts, 298) # Variance for dimer B
-    variC = ep.variance(freqs, epcC, qpts, 298) # Variance for dimer C
+    variA, sigmaA = ep.variance(freqs, epcA, qpts, 298) # Variance for dimer A
+    variB, sigmaB = ep.variance(freqs, epcB, qpts, 298) # Variance for dimer B
+    variC, sigmaC = ep.variance(freqs, epcC, qpts, 298) # Variance for dimer C
 
-    variance = {'A':variA,
-                'B':variB,
-                'C':variC}
+    variance = {'vA':variA,
+                'sA':sigmaA,
+                'vB':variB,
+                'sB':sigmaB,
+                'vC':variC,
+                'sC':sigmaC,}
 
     np.savez_compressed('variance' + '.npz', **variance)
 
@@ -275,13 +277,16 @@ def run_svd_projection(qpts):
     
     np.savez_compressed('svd_result' + '.npz', **svd_epc) 
 
-    svd_variA = ep.variance(f_sys, svd_epcA, qpts, 298) # Variance for dimer A
-    svd_variB = ep.variance(f_sys, svd_epcB, qpts, 298) # Variance for dimer B
-    svd_variC = ep.variance(f_sys, svd_epcC, qpts, 298) # Variance for dimer C
+    svd_variA, svd_sigmaA = ep.variance(f_sys, svd_epcA, qpts, 298) # Variance for dimer A
+    svd_variB, svd_sigmaB = ep.variance(f_sys, svd_epcB, qpts, 298) # Variance for dimer B
+    svd_variC, svd_sigmaC = ep.variance(f_sys, svd_epcC, qpts, 298) # Variance for dimer C
 
-    svd_variance = {'A':svd_variA,
-                    'B':svd_variB,
-                    'C':svd_variC}
+    svd_variance = {'vA':svd_variA,
+                    'sA':svd_sigmaA,
+                    'vB':svd_variB,
+                    'sB':svd_sigmaB,
+                    'vC':svd_variC,
+                    'sC':svd_sigmaC}
 
     np.savez_compressed('svd_variance' + '.npz', **svd_variance)
     
