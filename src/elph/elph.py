@@ -327,7 +327,7 @@ def variance(freqs, g, qpts, temp):
     temp (float): Temperture in Kelvin
     """
     var = (g**2/2)/np.tanh((hbar*freqs*1e12)/(2*k*temp)) # freqs in Phonopy is THz, so need to convert to Hz
-    sigma = (np.sum(var)**0.5)/qpts # Square root of variance, have to do normalization over the number of q points 
+    sigma = (np.sum(var)/qpts)**0.5 # Square root of variance, have to do normalization over the number of q points 
     return var, sigma
 
         
