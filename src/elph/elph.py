@@ -50,12 +50,12 @@ def phonon(natoms,mesh):
     Args:
     natoms (int): Number of atoms in the system (Defaults to None)
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
-    #supercell_matrix (tuple): Need define a supercell size. 
     #########################################
     Output:
     phonopy_params.yaml file
-    mesh.yaml file (frequency)
-    mod, freq: displacement_list and normal mode frequencies
+    mod: displacement_list in unitcell 
+    freq: normal mode frequencies in THz
+    nqpts: number of q points
     """
     if os.path.exists("FORCE_SETS"):
         print(" FORCE_SETS already exists, continue calculation! ")
@@ -70,6 +70,7 @@ def phonon(natoms,mesh):
     mesh_data = phonon.get_mesh_dict()
     freq = mesh_data['frequencies'].flatten() # Shape is (nqpts*natoms*3,)
     qpts = mesh_data['qpoints'] 
+    nqpts = len(qpts) # number of q points
     mod = np.zeros((int(freq.shape[0]),natoms,3)) # modulations
 
     mode = [[q, band_index, 1, 0.0] for q in qpts for band_index in range(natoms*3)]
@@ -85,7 +86,7 @@ def phonon(natoms,mesh):
     np.savetxt("frequencies.txt", freq, header="Phonon frequencies (THz)") # save frequencies to txt file
     print(" Finish Modulation using Phonopy ")
     
-    return mod, freq, qpts
+    return mod, freq, nqpts
 
 def neighbor(atoms):
     """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
