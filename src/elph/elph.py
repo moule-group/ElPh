@@ -44,13 +44,13 @@ def getGeometry(path):
     
     return file[0]
     
-def phonon(natoms,mesh,supercell_matrix):
+def phonon(natoms,mesh):
     """ Obtain FORCE_CONSTANTS file for specific calculator from Phonopy and return normal mode frequencies;
         Run Phonopy modulation to create atomic displacement and return modulation and frequency.
     Args:
     natoms (int): Number of atoms in the system (Defaults to None)
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
-    supercell_matrix (tuple): Need define a supercell size. 
+    #supercell_matrix (tuple): Need define a supercell size. 
     #########################################
     Output:
     phonopy_params.yaml file
@@ -70,12 +70,7 @@ def phonon(natoms,mesh,supercell_matrix):
     mesh_data = phonon.get_mesh_dict()
     freq = mesh_data['frequencies'].flatten() # Shape is (nqpts*natoms*3,)
     qpts = mesh_data['qpoints'] 
-    eigvecs = mesh_data['eigenvectors'] # Shape is (nqpts,natoms*3,natoms*3)
-    #sc = list(supercell_matrix)
-    #a=sc[0]
-    #b=sc[1]
-    #c=sc[2]
-    mod = np.zeros((int(freq.shape[0]*qpts.shape[0]),natoms,3)) # modulations
+    mod = np.zeros((int(freq.shape[0]),natoms,3)) # modulations
 
     mode = [[q, band_index, 1, 0.0] for q in qpts for band_index in range(natoms*3)]
  
@@ -88,7 +83,6 @@ def phonon(natoms,mesh,supercell_matrix):
     mod = mod[index]
 
     np.savetxt("frequencies.txt", freq, header="Phonon frequencies (THz)") # save frequencies to txt file
-    np.savez_compressed('eigvecs' + '.npz', eigvecs=eigvecs)   # save eigenvectors
     print(" Finish Modulation using Phonopy ")
     
     return mod, freq, qpts

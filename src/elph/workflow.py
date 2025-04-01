@@ -184,7 +184,8 @@ def run_matrix(mesh,sc):
     main_path = os.getcwd()
     atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
     natoms = len(atoms) # Number of atoms in the supercell
-    displacement, freqs = ep.phonon(natoms,mesh,sc) # Run phonopy modulation to create eigendisplacements list 
+    mod, freqs, qpts = ep.phonon(natoms,mesh) # Run phonopy modulation to create eigendisplacements list 
+    displacement = np.tile(mod, (1, sc[0]*sc[1]*sc[2], 1)) # The shape of displacement is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
     # the shape of displacement_list is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
     
     displacement_A = np.zeros((displacement.shape[0],len(mapping_A),3))
@@ -223,8 +224,6 @@ def run_matrix(mesh,sc):
     np.savez_compressed('svd_ep_coupling' + '.npz', **svd_epc) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
 
     # Calculate the variance of the electron-phonon coupling matrix
-    qpts = displacement.shape[0] / (natoms * 3)
-
     variA, sigmaA = ep.variance(freqs, epcA, qpts, 298) # Variance for dimer A
     variB, sigmaB = ep.variance(freqs, epcB, qpts, 298) # Variance for dimer B
     variC, sigmaC = ep.variance(freqs, epcC, qpts, 298) # Variance for dimer C
