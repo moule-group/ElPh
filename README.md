@@ -73,9 +73,13 @@ elph -w 3
 
 -s --supercell: The supercell matrix (Defaults to [2,2,2])
 
+-homo --homo: P-type semiconductors: HOMO; N-type semiconductors: LUMO. (Defaults to True)
+
 -o --output: Mobility calculation output name (Defaults to tlt_mobility.json)
 
 -svd --svdqpts: Number of qpoints that SVD projection will apply (Defaults to 1)
+
+-mx --matrix: The matrix (epc or variance) that be applied to SVD projection (epc or var, defaults to epc)
 
 ## mobility.json
 
