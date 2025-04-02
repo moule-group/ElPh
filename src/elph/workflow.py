@@ -226,9 +226,9 @@ def run_matrix(mesh,sc):
                 'vC':variC,
                 'sC':sigmaC}
 
-    svd_variA, _ = ep.variance(freqs, svd_epcA, nqpts, 298) # Variance for dimer A
-    svd_variB, _ = ep.variance(freqs, svd_epcB, nqpts, 298) # Variance for dimer B
-    svd_variC, _ = ep.variance(freqs, svd_epcC, nqpts, 298) # Variance for dimer C
+    svd_variA, _ = ep.variance(freqs, svd_epcA, nqpts, 298, svd=True) # Variance for further SVD projection
+    svd_variB, _ = ep.variance(freqs, svd_epcB, nqpts, 298, svd=True) 
+    svd_variC, _ = ep.variance(freqs, svd_epcC, nqpts, 298, svd=True) 
 
     svd_variance = {'vA':svd_variA,
                     'vB':svd_variB,  
@@ -263,9 +263,9 @@ def run_svd_projection(matrix, nqpts):
     main_path = os.getcwd()
     atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
     natoms = len(atoms)
-    num_modes = 3 * natoms
+    nmodes = 3 * natoms
     if matrix == 'epc':
-        svd_epcA, svd_epcB, svd_epcC, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(matrix, num_modes, nqpts)
+        svd_epcA, svd_epcB, svd_epcC, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts)
 
         svd_epc = {'A':svd_epcA,
                    'B':svd_epcB,
@@ -278,7 +278,7 @@ def run_svd_projection(matrix, nqpts):
         np.savez_compressed('svd_epc_result' + '.npz', **svd_epc) 
 
     if matrix == 'variance':
-        svd_varA, svd_varB, svd_varC, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(matrix, num_modes, nqpts)
+        svd_varA, svd_varB, svd_varC, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(um_modes=nmodes, nqpts=nqpts, matrix='variance')
 
         svd_epc = {'A':svd_varA,
                    'B':svd_varB,
@@ -289,19 +289,6 @@ def run_svd_projection(matrix, nqpts):
                    'coeff_bath':coeff_bath}
     
         np.savez_compressed('svd_variance_result' + '.npz', **svd_epc)
-
-    #svd_variA, svd_sigmaA = ep.variance(f_sys, svd_epcA, nqpts, 298) # Variance for dimer A
-    #svd_variB, svd_sigmaB = ep.variance(f_sys, svd_epcB, nqpts, 298) # Variance for dimer B
-    #svd_variC, svd_sigmaC = ep.variance(f_sys, svd_epcC, nqpts, 298) # Variance for dimer C
-
-    #svd_variance = {'vA':svd_variA,
-     #               'sA':svd_sigmaA,
-     #               'vB':svd_variB,
-     #               'sB':svd_sigmaB,
-     #               'vC':svd_variC,
-     #               'sC':svd_sigmaC}
-
-    #np.savez_compressed('svd_variance' + '.npz', **svd_variance)
     
    
     

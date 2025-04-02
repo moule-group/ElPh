@@ -3,21 +3,21 @@ import yaml
 #from qutip import * # quantum toolbox in python
 
 
-def svd_projection(matrix, num_modes, nqpts, threshold=1e-9):
+def svd_projection(num_modes, nqpts, threshold=1e-9, matrix='epc'):
     """
     Singular value decomposition (SVD) of the electron-phonon coupling matrix
     and projection of the phonon modes into system and bath modes.
 
     Parameters
     ----------
-    matrix : str
-        Select the matrix to be used for SVD, can be 'epc' or 'variance'.
     num_modes : int
         Number of phonon modes.
     nqpts : int
         Number of q-points.
     threshold : float
         Threshold for singular values to be considered zero.
+    matrix : str
+        Select the matrix to be used for SVD, can be 'epc' or 'variance'.
 
     Returns
     -------
@@ -41,18 +41,17 @@ def svd_projection(matrix, num_modes, nqpts, threshold=1e-9):
 
     # Numpy SVD 
     if matrix == 'epc':
-        # Load epcoupling 
-        cp = np.load('svd_ep_coupling.npz')
+        cp = np.load('svd_ep_coupling.npz') # Load epc
         epcA = cp['A'][0:num_modes*nqpts]
         epcB = cp['B'][0:num_modes*nqpts]
         epcC = cp['C'][0:num_modes*nqpts]
         epc = epcA+epcB+epcC
         print(f"EPC shape is {epc.shape}")
         U, S, Vh = np.linalg.svd(epc, full_matrices=True)  # Reduced SVD (if full_matrices is False): U is rotational orthogonal matrix; 
+        # S is singular vectors (return singular value in 1D array); Vh is rotational orthogonal matrix
     
     if matrix == 'variance':
-        # Load variance
-        variance = np.load('variance_for_svd.npz')
+        variance = np.load('variance_for_svd.npz') # Load variance
         varA = variance['A'][0:num_modes*nqpts]
         varB = variance['B'][0:num_modes*nqpts]
         varC = variance['C'][0:num_modes*nqpts]
@@ -60,7 +59,7 @@ def svd_projection(matrix, num_modes, nqpts, threshold=1e-9):
         print(f"Variance shape is {var.shape}")
         U, S, Vh = np.linalg.svd(var, full_matrices=True)
     
-    print(f'Singular values are {S}') #S is singular vectors (return singular value in 1D array); Vh is rotational orthogonal matrix
+    print(f'Singular values are {S}') 
     print(f"Shape of left orthogonal matrix {U.shape}")
     print(f"Shape of singular vectors {S.shape}")
     print(f"Shape of right orthogonal matrix {Vh.shape}")
@@ -69,7 +68,7 @@ def svd_projection(matrix, num_modes, nqpts, threshold=1e-9):
     print('Indices of non-zero singular values=', Snonzero)
 
     P = U[:, Snonzero] @ U[:, Snonzero].T # Projection operator
-    I = np.eye(num_modes * qpts)
+    I = np.eye(num_modes * nqpts)
     Q = I - P # Complement operator
     print(f"Shape of projection operator {P.shape}")
     print(f"Projection operator test: ||P^2 - P|| = {np.linalg.norm(P @ P - P)}")
