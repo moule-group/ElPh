@@ -52,9 +52,9 @@ def svd_projection(num_modes, nqpts, threshold=1e-9, matrix='epc'):
     
     if matrix == 'var':
         variance = np.load('variance_for_svd.npz') # Load variance
-        varA = variance['A'][0:num_modes*nqpts]
-        varB = variance['B'][0:num_modes*nqpts]
-        varC = variance['C'][0:num_modes*nqpts]
+        varA = variance['vA'][0:num_modes*nqpts]
+        varB = variance['vB'][0:num_modes*nqpts]
+        varC = variance['vC'][0:num_modes*nqpts]
         var = varA + varB + varC
         print(f"Variance shape is {var.shape}")
         U, S, Vh = np.linalg.svd(var, full_matrices=True)
