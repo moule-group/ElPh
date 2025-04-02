@@ -15,6 +15,7 @@ def main():
     parser.add_argument("-svd", "--svdqpts", type=int, default=1, help='Number of qpoints that SVD projection will apply') # Add an argument: svd
     parser.add_argument("-w", "--workflow", type=int, default=1, help='Type in the workflow number to run corresponding simulation') # Add an argument: workflow
     parser.add_argument("-homo", "--homo", type=str, default=True, help='P-type: HOMO; N-type: LUMO') # Add an argument: homo
+    parser.add_argument("-mx", "--matrix", type=str, default='epc', help='Matrix to run SVD (epc or var)') # Add an argument: matrix 
     args = parser.parse_args() # Parse the argument
     
     ut.print_start()
@@ -27,7 +28,7 @@ def main():
             ut.print_end()
 
         if args.workflow == 2: # Run the workflow 2 (need to finish workflow 1 first)
-            run_svd_projection(args.svdqpts) # Run the SVD projection
+            run_svd_projection(args.matrix, args.svdqpts) # Run the SVD projection
             ut.print_end()
         
         if args.workflow == 3:  # Calculate the mobility
