@@ -19,14 +19,14 @@ class Mobility():
     translation_dist (float): One of the lattice parameter will be consider into interaction
     j_ii (list): Intra-molecular transfer integral (Onsite energy) (ex: J_ii)
     j_ij (list): Inter-molecular transfer integral (ex: J_a, J_b, J_c)
-    sigma (list): nonlocal electronic phonon coupling (dynamic disorder) (ex: sigma_a, sigma_b, sigma_c)
+    sigma_ij (list): nonlocal electronic phonon coupling (dynamic disorder) (ex: sigma_a, sigma_b, sigma_c)
     temp (float): Temperature in Kelvin (Defaults to 300)
     inverse_htau (float): Inverse of the scattering time (hbar/tau) units in eV (Defaults to 5e-3)
-    hole (bool): If True, hole transport, otherwise electron transport (Defaults to True)
+    is_hole (bool): If True, hole transport, otherwise electron transport (Defaults to True)
     realizations (int): Number of realizations for average calculation (Defaults to 250)
     mob_file (str): The json file containing the mobility parameters (Defaults to "mobility.json")
     """
-    def __init__(self, atoms=None, nx=1, ny=1, nz=1, lattice_vecs=None, plane=None, distances=None, translation_dist=None, j_ii=0.0, j_ij=None, sigma_ii=0.0, sigma_ij=None, temp=300.0, inverse_htau=5e-3, hole=True,realizations=250, 
+    def __init__(self, atoms=None, nx=1, ny=1, nz=1, lattice_vecs=None, plane=None, distances=None, translation_dist=None, j_ii=0.0, j_ij=None, sigma_ij=None, temp=300.0, inverse_htau=5e-3, is_hole=True,realizations=250, 
                  mob_file="mobility.json"):
         
         if mob_file:
@@ -43,11 +43,10 @@ class Mobility():
             self.translation_dist = config.get("translation_dist", translation_dist)
             self.j_ii = config.get("j_ii", j_ii)
             self.j_ij = config.get("j_ij", j_ij)
-            self.sigma_ii = config.get("sigma_ii", sigma_ii)
             self.sigma_ij = config.get("sigma_ij", sigma_ij)
-            self.temp = config.get("temp", temp)  # FIXED LINE
+            self.temp = config.get("temp", temp)
             self.inverse_htau = config.get("inverse_htau", inverse_htau)
-            self.hole = config.get("hole", hole)
+            self.is_hole = config.get("is_hole", is_hole)
             self.realizations = config.get("realizations", realizations)
         
         else:
@@ -81,8 +80,6 @@ class Mobility():
         dist_vecs (np.array): The distance vectors array after applying PBC
         """
         for i in range(3):  # 3D case: x, y and z
-            half_length = self.lattice_vecs[i] / 2  # Half of unit cell in i direction
-        
             if dist_vecs[:, :, i].any() > self.lattice_vecs[i, i] / 2.:
                 dist_vecs[:, :, i] -= self.lattice_vecs[i, i]
             elif dist_vecs[:, :, i].any() < -self.lattice_vecs[i, i] / 2.:
@@ -168,7 +165,6 @@ class Mobility():
 
         # Onsite energy matrix (H_ii)
         Hii_matrix = np.diag([self.j_ii]*interaction_matrix.shape[0])
-        gii_matrix = np.diag([self.sigma_ii]*interaction_matrix.shape[0])
 
         # Inter-molecular transfer integral matrix (H_ij)
         j1 = self.j_ij[0]
@@ -191,7 +187,7 @@ class Mobility():
         gaussian_matrix = np.random.normal(0, 1, size=interaction_matrix.shape)
         gaussian_matrix = np.tril(gaussian_matrix) + np.tril(gaussian_matrix, -1).T
     
-        H = Hii_matrix + Hij_matrix + gii_matrix * gaussian_matrix + gij_matrix * gaussian_matrix
+        H = Hii_matrix + Hij_matrix + gij_matrix * gaussian_matrix
 
         return H
 
@@ -210,7 +206,7 @@ class Mobility():
         """
         dist_vecs, _ = self.interactions()
         factor = -1
-        if not self.hole: # If hole transport, it will transport at the top edge of the valence band, Boltzmann factor will be positive
+        if not self.is_hole: # If hole transport, it will transport at the top edge of the valence band, Boltzmann factor will be positive
             factor = 1
 
         beta = 1 / (k * jtoev * self.temp) # Boltzmann factor 
@@ -252,12 +248,9 @@ class Mobility():
         avg_lx2 (float): The average square localization length in x direction
         avg_ly2 (float): The average square localization length in y direction
         """
-        positions = self.generate_lattice()
-        dist_vecs, interaction_matrix = self.interactions()
         avglx2_list = []
         avgly2_list = []
         for n in range(self.realizations):
-            h_ij = self.hamiltonian() # Create Hamiltonian every n (random distribution disorder)
             lx2, ly2 = self.localization() # Calculation lx^2 and ly^2 
             avglx2_list.append(lx2)
             avgly2_list.append(ly2)
