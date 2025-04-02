@@ -34,7 +34,7 @@ def getGeometry(path):
     The type of the structure files: ".cif"
     Args:
     path: The current directory (use os.getcwd())
-    #########################################
+    ----------------------------------------------
     Return:
     file: The structure file in the path
     """
@@ -50,7 +50,7 @@ def phonon(natoms,mesh):
     Args:
     natoms (int): Number of atoms in the system (Defaults to None)
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
-    #########################################
+    ----------------------------------------------
     Output:
     phonopy_params.yaml file
     mod: displacement_list in unitcell 
@@ -119,6 +119,7 @@ def unwrap_molecule_dimer(structure_path, supercell_matrix, mol1, mol2, mol3):
     mol1: The numbering of first neighbor molecule
     mol2: The numbering of second neighbor molecule
     mol3: The numbering of third neighbor molecule (translation of center molecule)
+    -----------------------------------------------
     Return:
     molecule_{x}.xyz file, where x is the numbering (3 files)
     dimer_{A}.xyz, where A is the labeling (3 files)
@@ -181,7 +182,7 @@ def get_displacement(atoms):
     """ Get numbering of displaced atom, displacement direction (x,y,z) and sign (+,-) 
     Args:
     atoms (ASE Atom object): molecule or dimer 
-    #########################################
+    -----------------------------------------------
     Return:
     na: numbering of displaced atom
     vec: displacement direction (x,y,z) in (0,1,2)
@@ -236,10 +237,9 @@ def create_displacement(delta=0.01):
 def mol_orbital(bset, atoms=None):
     """ Run Gaussian to compute the molecular orbitals for the system
     Args:
-    opt (int): Run Gaussian to optimize the structure, Defaults to 0 (without optimization)
     bset (str): Basis set for Gaussian calculation (Defaults to 3-21G*)
     atoms (ASE atoms object): optional, if not specified, it will run getGeometry 
-    ########################################
+    -----------------------------------------------
     Return:
     .pun file which contains molecular orbital for the cacluation later for J 
     """
@@ -275,7 +275,7 @@ def run_catnip(path1, path2, path3, path4, path5, path6):
     path4 (str): Path to the first Gaussian .log file
     path5 (str): Path to the second Gaussian .log file
     path6 (str): Path to the third Gaussian .log file (pair)
-    ###################################################
+    ------------------------------------------------
     Returns:
     output.decode('ascii').split()[-2]: Transfer integral J_eff,ab (Effective Transfer Integral) for the system, units is eV
     output.decode('ascii').split()[-13]: Transfer integral J_ab for the system, units is eV
@@ -290,7 +290,7 @@ def get_deri_Jmatrix(j_list, delta=0.01):
     Args:
     j_list (list): list of transfer integrals for each dimer 
     delta (float): size of displacement (Defaults to 0.01 Angstrom)
-    ########################################################
+    ------------------------------------------------
     Returns:
     matrix: matrix containing gradient of J_ij
     """
@@ -321,6 +321,10 @@ def variance(freqs, g, qpts, temp, svd=False):
     qpts (int): total kpts used in phonon calculation
     temp (float): Temperture in Kelvin
     svd (bool): If True, need to make freqs array into (x, 3) shape
+    ------------------------------------------------
+    Returns:
+    var (array): variance of the transfer integral J
+    sigma (float): standard deviation of the transfer integral J (eV)
     """
     if svd:
         freqs = np.tile(freqs[:, np.newaxis], (1, 3))

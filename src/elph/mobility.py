@@ -72,10 +72,10 @@ class Mobility():
         return positions
 
     def dist_pbc(self, dist_vecs):
-        """Apply minimum image convention (PBC) on distance vectors
+        """ Apply minimum image convention (PBC) on distance vectors
         Args:
         dist_vecs (np.array): The distance vectors array
-        ############
+        -----------------------------------------------
         Return:
         dist_vecs (np.array): The distance vectors array after applying PBC
         """
@@ -96,7 +96,7 @@ class Mobility():
         plane (list): The 2D plane for charge transport (ex: yz plane is [1,2]
         distances (list): Specific interaction distances to consider
         translation_dist (float): One of the lattice parameter will be consider into interaction
-        ###########
+        --------------------------------------------------------------------
         Returns:
         interaction_matrix (np.array): The interaction matrix
         dist_vecs (np.array): The distance vectors array
@@ -153,9 +153,7 @@ class Mobility():
         H = H_el + H_ph + H_elph
         in TLT: H_ph = 0, H_ii = 0
         H = H_ij + H_elph,nl
-        Args:
-        interactions: interaction matrix 
-        ##########################
+        ---------------------------------------------
         Return:
         H: Hamiltonian matrix
         """
@@ -199,7 +197,7 @@ class Mobility():
         interaction_matrix (np.array): The interaction matrix from interactions()
         inverse_htau (float): Inverse of the scattering time (hbar/tau) units in eV
         h_ij (np.array): The Hamiltonian matrix from hamiltonian()
-        #####################
+        -----------------------------------------------------------------
         Return:
         lx2 (float): The localization length in x direction
         ly2 (float): The localization length in y direction
@@ -243,7 +241,7 @@ class Mobility():
         translation_dist (float): One of the lattice parameter will be consider into interaction
         inverse_htau (float): Inverse of the scattering time (hbar/tau) units in eV (Defaults to 5e-3)
         temp (float): Temperature in Kelvin (Defaults to 300)
-        #####################
+        -----------------------------------------------------------------
         Return:
         avg_lx2 (float): The average square localization length in x direction
         avg_ly2 (float): The average square localization length in y direction
@@ -268,7 +266,7 @@ class Mobility():
         avg_ly2 (float): The average localization length in y direction
         inverse_htau (float): Inverse of the scattering time (hbar/tau) units in eV
         temp (float): Temperature in Kelvin
-        ############################
+        ---------------------------------------------------------------
         Return:
         mobilityx
         mobilityy

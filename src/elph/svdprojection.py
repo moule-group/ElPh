@@ -17,7 +17,7 @@ def svd_projection(num_modes, nqpts, threshold=1e-9, matrix='epc'):
     threshold : float
         Threshold for singular values to be considered zero.
     matrix : str
-        Select the matrix to be used for SVD, can be 'epc' or 'variance'.
+        Select the matrix to be used for SVD, can be 'epc' or 'var'.
 
     Returns
     -------
@@ -41,16 +41,16 @@ def svd_projection(num_modes, nqpts, threshold=1e-9, matrix='epc'):
 
     # Numpy SVD 
     if matrix == 'epc':
-        cp = np.load('svd_ep_coupling.npz') # Load epc
+        cp = np.load('epc_for_svd.npz') # Load epc
         epcA = cp['A'][0:num_modes*nqpts]
         epcB = cp['B'][0:num_modes*nqpts]
         epcC = cp['C'][0:num_modes*nqpts]
-        epc = epcA+epcB+epcC
+        epc = epcA + epcB + epcC
         print(f"EPC shape is {epc.shape}")
         U, S, Vh = np.linalg.svd(epc, full_matrices=True)  # Reduced SVD (if full_matrices is False): U is rotational orthogonal matrix; 
         # S is singular vectors (return singular value in 1D array); Vh is rotational orthogonal matrix
     
-    if matrix == 'variance':
+    if matrix == 'var':
         variance = np.load('variance_for_svd.npz') # Load variance
         varA = variance['A'][0:num_modes*nqpts]
         varB = variance['B'][0:num_modes*nqpts]
@@ -98,7 +98,7 @@ def svd_projection(num_modes, nqpts, threshold=1e-9, matrix='epc'):
     print(f"Shape of system phonon modes coefficient {coeff_sys.shape}")
     print(f"Shape of bath phonon modes coefficient {coeff_bath.shape}")
 
-
+    # Explanation: svd_epcA1 equals to epcA in x axis * coeff_sysmode1 + epcA in y axis * coeff_sysmode1 + epcA in z axis * coeff_sysmode1
     if matrix == 'epc':
         svd_epcA1 = epcA[:,0] @ coeff_sys[0,:] + epcA[:,1] @ coeff_sys[0,:] + epcA[:,2] @ coeff_sys[0,:] 
         svd_epcA2 = epcA[:,0] @ coeff_sys[1,:] + epcA[:,1] @ coeff_sys[1,:] + epcA[:,2] @ coeff_sys[1,:] 

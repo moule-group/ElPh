@@ -240,6 +240,9 @@ def run_matrix(mesh,sc):
 def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
     """
     Run TLT mobility simulation
+    Args:
+    filename (str): The mobility.json file to run TLT mobility simulation
+    output (str): The output name for TLT mobility simulation (Defaults to tlt_mobility)
     """
     print(" Running TLT mobility simulation using parameters in mobility.json ... ")
 
@@ -257,6 +260,9 @@ def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
 def run_svd_projection(matrix, nqpts):
     """
     Run SVD projection using numpy
+    Args:
+    matrix (str): The matrix to run SVD projection (epc or var)
+    nqpts (int): The number of q points to run SVD projection
     """
     print(" Running phonon modes projections using SVD ... ")
 
@@ -277,8 +283,8 @@ def run_svd_projection(matrix, nqpts):
     
         np.savez_compressed('svd_epc_result' + '.npz', **svd_epc) 
 
-    if matrix == 'variance':
-        svd_varA, svd_varB, svd_varC, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(um_modes=nmodes, nqpts=nqpts, matrix='variance')
+    if matrix == 'var':
+        svd_varA, svd_varB, svd_varC, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(um_modes=nmodes, nqpts=nqpts, matrix='var')
 
         svd_epc = {'A':svd_varA,
                    'B':svd_varB,
