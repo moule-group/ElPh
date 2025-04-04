@@ -273,8 +273,8 @@ def run_svd_projection(matrix, nqpts):
     
         np.savez_compressed('svd_epc_result' + '.npz', **result) 
 
-    if matrix == 'var':
-        svd_epc, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts)
+    if matrix == 'epcbe':
+        svd_epc, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts, matrix='epcbe')
 
         result = {'epc': svd_epc,
                    'freq_sys':f_sys,

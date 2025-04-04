@@ -3,7 +3,7 @@ import yaml
 #from qutip import * # quantum toolbox in python
 
 
-def svd_projection(num_modes, nqpts, threshold=1e-9, matrix='epcbe'):
+def svd_projection(num_modes, nqpts, matrix, threshold=1e-9):
     """
     Singular value decomposition (SVD) of the electron-phonon coupling matrix
     and projection of the phonon modes into system and bath modes.
@@ -17,7 +17,7 @@ def svd_projection(num_modes, nqpts, threshold=1e-9, matrix='epcbe'):
     threshold : float
         Threshold for singular values to be considered zero.
     matrix : str
-        Select the matrix to be used for SVD, can be 'epc' or 'epcbe'. (Default is 'epcbe')
+        Select the matrix to be used for SVD, can be 'epc' or 'epcbe'.
 
     Returns
     -------
