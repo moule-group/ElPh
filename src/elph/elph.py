@@ -325,13 +325,15 @@ def variance(freqs, g, qpts, temp, svd=False):
     Returns:
     var (array): variance of the transfer integral J
     sigma (float): standard deviation of the transfer integral J (eV)
+    b_e (array): Bose-Einstein distribution
     """
     if svd:
         freqs = np.tile(freqs[:, np.newaxis], (1, 3))
         
-    var = (g**2/2)/np.tanh((hbar*freqs*1e12)/(2*k*temp)) # freqs in Phonopy is THz, so need to convert to Hz
+    b_e = 1 / np.tanh((hbar*freqs*1e12)/(2*k*temp)) # Bose-Einstein distribution
+    var = (g**2/2) * b_e # freqs in Phonopy is THz, so need to convert to Hz
     sigma = (np.sum(var)/qpts)**0.5 # Square root of variance, have to do normalization over the number of q points 
-    return var, sigma
+    return var, sigma, b_e
 
         
 

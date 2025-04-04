@@ -215,27 +215,19 @@ def run_matrix(mesh,sc):
     np.savez_compressed('epc_for_svd' + '.npz', **svd_epc) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
 
     # Calculate the variance of the electron-phonon coupling matrix
-    variA, sigmaA = ep.variance(freqs, epcA, nqpts, 298) # Variance for dimer A
-    variB, sigmaB = ep.variance(freqs, epcB, nqpts, 298) # Variance for dimer B
-    variC, sigmaC = ep.variance(freqs, epcC, nqpts, 298) # Variance for dimer C
+    variA, sigmaA, b_e = ep.variance(freqs, epcA, nqpts, 298) # Variance for dimer A
+    variB, sigmaB, _ = ep.variance(freqs, epcB, nqpts, 298) # Variance for dimer B
+    variC, sigmaC, _ = ep.variance(freqs, epcC, nqpts, 298) # Variance for dimer C
 
     variance = {'vA':variA,
                 'sA':sigmaA,
                 'vB':variB,
                 'sB':sigmaB,
                 'vC':variC,
-                'sC':sigmaC}
+                'sC':sigmaC,
+                'be':b_e} 
 
-    svd_variA, _ = ep.variance(freqs, svd_epcA, nqpts, 298, svd=True) # Variance for further SVD projection
-    svd_variB, _ = ep.variance(freqs, svd_epcB, nqpts, 298, svd=True) 
-    svd_variC, _ = ep.variance(freqs, svd_epcC, nqpts, 298, svd=True) 
-
-    svd_variance = {'vA':svd_variA,
-                    'vB':svd_variB,  
-                    'vC':svd_variC} # This is the variance for running SVD projection
-    
     np.savez_compressed('variance' + '.npz', **variance)
-    np.savez_compressed('variance_for_svd' + '.npz', **svd_variance)
 
 def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
     """
@@ -271,30 +263,26 @@ def run_svd_projection(matrix, nqpts):
     natoms = len(atoms)
     nmodes = 3 * natoms
     if matrix == 'epc':
-        svd_epcA, svd_epcB, svd_epcC, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts)
+        svd_epc, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts, matrix='epc')
 
-        svd_epc = {'A':svd_epcA,
-                   'B':svd_epcB,
-                   'C':svd_epcC,
+        result = {'epc': svd_epc,
                    'freq_sys':f_sys,
                    'freq_bath':f_bath,
                    'coeff_sys':coeff_sys,
                    'coeff_bath':coeff_bath}
     
-        np.savez_compressed('svd_epc_result' + '.npz', **svd_epc) 
+        np.savez_compressed('svd_epc_result' + '.npz', **result) 
 
     if matrix == 'var':
-        svd_varA, svd_varB, svd_varC, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts, matrix='var')
+        svd_epc, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts)
 
-        svd_epc = {'A':svd_varA,
-                   'B':svd_varB,
-                   'C':svd_varC,
+        result = {'epc': svd_epc,
                    'freq_sys':f_sys,
                    'freq_bath':f_bath,
                    'coeff_sys':coeff_sys,
                    'coeff_bath':coeff_bath}
     
-        np.savez_compressed('svd_variance_result' + '.npz', **svd_epc)
+        np.savez_compressed('svd_epcbe_result' + '.npz', **result)
     
    
     
