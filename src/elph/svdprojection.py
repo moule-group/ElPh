@@ -40,7 +40,8 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9):
     epcA = cp['A'][0:num_modes*nqpts]
     epcB = cp['B'][0:num_modes*nqpts]
     epcC = cp['C'][0:num_modes*nqpts]
-    _, _, b_e = np.load('variance.npz') # Load variance
+    var = np.load('variance.npz') # Load variance
+    b_e = var['b_e'][0:num_modes*nqpts]
     print(f"EPC shape is {epc.shape}")
 
     if matrix == 'epc':
