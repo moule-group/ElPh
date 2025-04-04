@@ -1,9 +1,10 @@
 import numpy as np
+from scipy.constants import hbar, k
 import yaml
 #from qutip import * # quantum toolbox in python
 
 
-def svd_projection(num_modes, nqpts, matrix, threshold=1e-9):
+def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     """
     Singular value decomposition (SVD) of the electron-phonon coupling matrix
     and projection of the phonon modes into system and bath modes.
@@ -18,6 +19,8 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9):
         Threshold for singular values to be considered zero.
     matrix : str
         Select the matrix to be used for SVD, can be 'epc' or 'epcbe'.
+    temp: float
+        Temperature in Kelvin. (Default is 298 K)
 
     Returns
     -------
@@ -40,8 +43,10 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9):
     epcA = cp['A'][0:num_modes*nqpts]
     epcB = cp['B'][0:num_modes*nqpts]
     epcC = cp['C'][0:num_modes*nqpts]
-    var = np.load('variance.npz') # Load variance
-    b_e = var['be'][0:num_modes*nqpts]
+    
+    freqs = np.tile(freq[:, np.newaxis], (1, 3))
+    b_e = 1 / np.tanh((hbar*freqs*1e12)/(2*k*temp))
+    b_e = b_e[0:num_modes*nqpts]
     
     if matrix == 'epc':
         epc = epcA + epcB + epcC
