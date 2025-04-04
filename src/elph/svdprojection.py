@@ -42,15 +42,16 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9):
     epcC = cp['C'][0:num_modes*nqpts]
     var = np.load('variance.npz') # Load variance
     b_e = var['be'][0:num_modes*nqpts]
-    print(f"EPC shape is {epc.shape}")
-
+    
     if matrix == 'epc':
         epc = epcA + epcB + epcC
+        print(f"EPC shape is {epc.shape}")
         U, S, Vh = np.linalg.svd(epc, full_matrices=True)  # Reduced SVD (if full_matrices is False): U is rotational orthogonal matrix; 
         # S is singular vectors (return singular value in 1D array); Vh is rotational orthogonal matrix
     
     if matrix == 'epcbe':
         epc = epcA*b_e + epcB*b_e + epcC*b_e
+        print(f"EPC shape is {epc.shape}")
         U, S, Vh = np.linalg.svd(epc, full_matrices=True)
     
     print(f'Singular values are {S}') 
