@@ -1,4 +1,4 @@
-from elph.workflow import getGeometry, run_j0, run_disp_j, run_matrix, run_tlt_mobility, run_svd_projection
+from elph.workflow import run_j0, run_reorg_eng, run_disp_j, run_matrix, run_tlt_mobility, run_svd_projection
 import elph.utils as ut
 import argparse
 import sys
@@ -23,6 +23,7 @@ def main():
     try:
         if args.workflow == 1: 
             run_j0(args.homo, args.mol, args.supercell, args.basis) # Run Gaussian with optimization 
+            run_reorg_eng(args.basis)
             run_disp_j(args.basis) # Create displaced dimers and calculate J_ij of dimers.
             run_matrix(args.mesh, args.supercell) # Calculate electron phonon coupling matrix (including local and non-local part)
             ut.print_end()

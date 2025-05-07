@@ -5,6 +5,7 @@ import numpy as np
 import os
 import sys
 import yaml
+from scipy.constants import hbar
 import elph.utils as ut
 import elph.elph as ep
 import elph.svdprojection as svd
@@ -26,7 +27,7 @@ def getGeometry(path):
     
     return file[0]
 
-def run_j0(is_homo, mol_list, supercell_matrix, basis):
+def run_j0(mol_list, supercell_matrix, basis):
     """ Main function for running Gaussian and Catnip to get transfer integral J_0
     Args:
     mol_list (list): After visualization, you need to specify 3 molecules. The order is: 1st; 2nd; 3rd
@@ -92,6 +93,76 @@ def run_j0(is_homo, mol_list, supercell_matrix, basis):
             
         with open('j0.json', 'w', encoding='utf-8') as f2:
             json.dump(j0, f2, ensure_ascii=False, indent=4)
+
+def run_epislon(basis):
+    """ Run onsite energy calculation using normal mode analysis to get reorganization energy &
+    local EP coupling
+    Args:
+    basis (str): Gaussian basis sets
+    -----------------------------------------------
+    Return:
+    local.json file which saves onsite energy & reorganization energy (units: eV)
+    """
+    main_path = os.getcwd()
+    orginal_atoms = ase.io.read(f'{main_path}/1/monomer_1.xyz') # Read the structure file
+
+    if not os.path.exists(f'{main_path}/local/local_epc.json'):
+        print(' Running local EPC calculation ... ')
+        os.mkdir(os.path.join(main_path, 'local'))
+        os.chdir(os.path.join(main_path, 'local'))
+    
+        ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='neutral', ncharge=0)
+        ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', ncharge=1)
+
+        ep.hr_factor()
+        eng, freq_n, huangrhys_n, reorg_n, gii_n = ep.parse_log('hr_neutral.log')
+        _, freq_c, huangrhys_c, reorg_c, gii_c = ep.parse_log('hr_cation.log')
+        # 4-point method
+        # Calculate onsite energy for relaxed neutral molecule (Rn)
+        #os.mkdir(os.path.join(main_path, 'reorgE', 'neutral_opt'))
+        #os.chdir(os.path.join(main_path, 'reorgE', 'neutral_opt'))
+        #ep.onsite_eng(atoms=orginal_atoms, bset=basis, opt=True)
+        #neutral_rn_eng = ep.parse_log('mo.log')
+        #os.chdir(os.pardir)
+        # Calculate onsite energy for relax charged molecule (Rc)
+        #os.mkdir(os.path.join(main_path, 'reorgE', 'charged_opt'))
+        #os.chdir(os.path.join(main_path, 'reorgE', 'charged_opt'))
+        #ep.onsite_eng(atoms=orginal_atoms, bset=basis, ncharge=1, opt=True)
+        #charged_rc_eng = ep.parse_log('mo_opt.log')
+        #os.chdir(os.pardir)
+
+        # Calculate onsite energy for charged molecule at Rn
+        #os.mkdir(os.path.join(main_path, 'reorgE', 'charged_at_Rn'))
+        #os.chdir(os.path.join(main_path, 'reorgE', 'charged_at_Rn'))
+        #cmol_rn = ase.io.read(os.path.join(main_path, 'onsiteE', 'charged_opt', 'opt.xyz')) # Read the structure file
+        #ep.onsite_eng(atoms=cmol_rn, bset=basis, ncharge=1)
+        #charged_rn_eng = ep.parse_log('mo_opt.log')
+        #os.chdir(os.pardir)
+        # Calcualte onsite energy for neutral molecule at Rc
+        #os.mkdir(os.path.join(main_path, 'reorgE', 'neutral_at_Rc'))
+        #os.chdir(os.path.join(main_path, 'reorgE', 'neutral_at_Rc'))
+        #mol_rc = ase.io.read(os.path.join(main_path, 'reorgE', 'neutral_opt', 'opt.xyz')) # Read the structure file
+        #ep.onsite_eng(atoms=mol_rc, bset=basis)
+        #neutral_rc_eng = ep.parse_log('mo_opt.log')
+        #os.chdir(os.pardir) 
+
+        #reorg_eng = charged_rn_eng + neutral_rc_eng - neutral_rn_eng - charged_rc_eng
+
+        #onsiteE = {'neutral_rc': neutral_rc_eng,
+        #           'neutral_rn': neutral_rn_eng,
+        #           'charged_rn': charged_rn_eng,
+        #           'charged_rc': charged_rc_eng,
+        #           'reorg': reorg_eng
+        #        }
+
+        local = {'onsite_eng': eng,
+                 'reorg_eng_n': reorg_n,
+                 'reorg_eng_c': reorg_c,
+                }
+        with open('local_epc.json', 'w', encoding='utf-8') as f:
+            json.dump(local, f, ensure_ascii=False, indent=4) 
+
+    return reorg_n, reorg_c, freq_n, freq_c, huangrhys_n, huangrhys_c, gii_n, gii_c
 
 def run_disp_j(basis):
     """ Main function for running Gaussian and Catnip to get transfer integral J for displaced molecules and dimers
@@ -191,22 +262,22 @@ def run_matrix(mesh,sc):
     displacement_A = displacement[:,mapping_A,:]  # Assign the corresponding displacement
     displacement_B = displacement[:,mapping_B,:]  # Assign the corresponding displacement
     displacement_C = displacement[:,mapping_C,:]  # Assign the corresponding displacement
-    
-    #epc_mol = np.einsum('ij,kij->k', ematrix, displacement_mol)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
+         
     epcA = np.einsum('ij,kij->k', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
     epcB = np.einsum('ij,kij->k', matrix_B, displacement_B)  # We get coefficient g_IJ here           
     epcC = np.einsum('ij,kij->k', matrix_C, displacement_C)      
 
-    #svd_epc_mol = np.einsum('ij,kij->kj', ematrix, displacement_mol)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
     svd_epcA = np.einsum('ij,kij->kj', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
     svd_epcB = np.einsum('ij,kij->kj', matrix_B, displacement_B)  # The shape here is k,3           
     svd_epcC = np.einsum('ij,kij->kj', matrix_C, displacement_C)      
                                                                     
-    epc = {'A':epcA,
+    epc = {'L':epcL,
+           'A':epcA,
            'B':epcB,
            'C':epcC}
     
-    svd_epc = {'A':svd_epcA, # This is the epc matrix for running SVD projection
+    svd_epc = {'L':svd_epcL,
+               'A':svd_epcA, # This is the epc matrix for running SVD projection
                'B':svd_epcB,
                'C':svd_epcC}
     
@@ -215,11 +286,14 @@ def run_matrix(mesh,sc):
     np.savez_compressed('epc_for_svd' + '.npz', **svd_epc) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
 
     # Calculate the variance of the electron-phonon coupling matrix
+    variL, sigmaL = ep.variance(freqs, epcL, nqpts, 298) # Variance for local el-ph coupling matrix
     variA, sigmaA = ep.variance(freqs, epcA, nqpts, 298) # Variance for dimer A
     variB, sigmaB = ep.variance(freqs, epcB, nqpts, 298) # Variance for dimer B
     variC, sigmaC  = ep.variance(freqs, epcC, nqpts, 298) # Variance for dimer C
 
-    variance = {'vA':variA,
+    variance = {'vL':variL,
+                'sL':sigmaL,
+                'vA':variA,
                 'sA':sigmaA,
                 'vB':variB,
                 'sB':sigmaB,
@@ -238,9 +312,11 @@ def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
     print(" Running TLT mobility simulation using parameters in mobility.json ... ")
 
     mobility = Mobility(mob_file=filename)
-    mobilityx, mobilityy, mobility_average = mobility.tlt_mobility()
+    avglx2, avgly2, mobilityx, mobilityy, mobility_average = mobility.tlt_mobility()
 
-    mobility = {'Mobility on X direction (cm^/Vs)': round(mobilityx, 3), 
+    mobility = {'Localization length in X': round(avglx2, 3),
+                'Localization length in Y': round(avgly2, 3),
+                'Mobility on X direction (cm^/Vs)': round(mobilityx, 3), 
                 'Mobility on Y direction (cm^/Vs)': round(mobilityy, 3),
                 'Average mobility': round(mobility_average, 3)
     }

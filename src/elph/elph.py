@@ -19,13 +19,13 @@ import elph.utils as ut
 from time import time
 from pathlib import Path
 from phonopy.cui.create_force_sets import create_FORCE_SETS
-from ase.calculators.gaussian import Gaussian
+from ase.calculators.gaussian import Gaussian, GaussianOptimizer
 from ase.visualize import view
 from ase.neighborlist import natural_cutoffs, neighbor_list
 from ase import Atoms
 from ase.build import sort
 from scipy import sparse 
-from scipy.constants import hbar, k
+from scipy.constants import h, k
 from collections import OrderedDict, defaultdict
 
 def getGeometry(path):
@@ -234,6 +234,137 @@ def create_displacement(delta=0.01):
 	   
         os.chdir(main_path) 
 
+def gaussian_opt(atoms, bset, label, ncharge=0):
+    """ Run Gaussian simulation to get the onsite energy for the system
+    Args:
+    atoms (ASE atoms object)
+    bset (str): Basis set for Gaussian calculation (Defaults to 3-21G*)
+    label (str): Label for the Gaussian calculation
+    ncharged (int): Charge of the system (0: neutral, 1: hole transport, -1: electron transport)
+    -----------------------------------------------
+    """
+    opt_cmd = Gaussian(mem='16GB',
+                       chk=f'{label}.chk',
+                       nprocshared=12,
+                       label=label,
+                       charge=ncharge,
+                       mult=2*0.5*ncharge+1, # 2S+1
+                       save=None,
+                       method='b3lyp',
+                       basis=f'{bset}', # can use 6-31G* 
+                       scf='tight',
+                       pop='full',
+                       extra='nosymm freq') 
+
+    opt_calc = GaussianOptimizer(atoms, opt_cmd)
+    opt_calc.run(fmax='tight',steps=60)
+    ase.io.write(f'{label}.xyz', atoms)
+
+def hr_factor():
+    """ Create Gaussian input files for Huang-Rhys factor calculation
+    ------------------------------------------------
+    """
+    with open('hr_cation.com', 'w') as f1:
+        cmds = ["%mem=16GB\n",
+                "%oldchk=cation.chk\n",
+                "%chk=fc.chk\n",
+                "#P b3lyp/6-31G** Geom=AllCheck Freq=(READFC,FC,ReadFCHT)\n",
+                "\n",
+                "Initial=Source=Chk Final=Source=Chk\n",
+                "print=(huangrhys,matrix=JK)\n",
+                "\n",
+                "neutral.chk\n",
+                "cation.chk\n",
+                "\n"
+               ]
+          
+        f1.writelines(cmds)
+
+    with open('hr_neutral.com', 'w') as f2:
+        cmds = ["%mem=16GB\n",
+                "%oldchk=neutral.chk\n",
+                "%chk=fc.chk\n",
+                "#P b3lyp/6-31G** Geom=AllCheck Freq=(READFC,FC,ReadFCHT)\n",
+                "\n",
+                "Initial=Source=Chk Final=Source=Chk\n",
+                "print=(huangrhys,matrix=JK)\n",
+                "\n",
+                "neutral.chk\n",
+                "cation.chk\n",
+                "\n"
+               ]
+          
+        f2.writelines(cmds)
+
+    subprocess.run('g16 < hr_cation.com > hr_cation.log', shell=True)
+    subprocess.run('g16 < hr_neutral.com > hr_neutral.log', shell=True)
+
+def parse_log(logfile):
+    """ Parse the Gaussian log file to get (1) onsite energy (2) frequencies (3) Huang-Rhys factors
+    (4) reorganization energy (5) local EPC
+    Args:
+    logfile1 (str): Path to the Gaussian log file
+    -------------------------------------------
+    Returns:
+    eng (float): Onsite energy for the system (eV)
+    freq (list): Frequencies of the system (cm^-1)
+    huangrhys (list): Huang-Rhys factors for the system (unitless)
+    reorg (list): Reorganization energy for the system in eV
+    gii (list): Local electron-phonon coupling for the system in eV
+    """
+    data = cclib.io.ccread(logfile)
+    moenergy = data.moenergies[0]
+    homo_index = data.homos 
+    eng = moenergy[homo_index]
+
+    jtoev = 6.241509074460763e+18 
+    cm_1tohz = 3e10
+    freq = []
+    huangrhys = []  
+    gii = []
+    
+    with open(logfile) as log:
+    
+        for l in log.readlines():
+            L = l.split()
+        
+            if len(L)==4 and L[0]=='Deg.' and L[1]=='of' and L[2]=='freedom':
+                num_modes=int(L[3])
+                fulllines=int(num_modes/3)
+    
+            if len(L)==3 and L[0]=='and' and L[1]=='normal' and 'coordinates:':
+        
+                if counter < fulllines and len(L) > 4 and L[0]=='Frequencies' and L[1]=='--':
+                    freq.append(float(L[2]))
+                    freq.append(float(L[3]))
+                    freq.append(float(L[4]))
+                    counter += 1
+                elif counter == fulllines and len(L) > 2 and L[0]=='Frequencies' and L[1]=='--':
+                    resline=num_modes-3*fulllines
+                    for i in range(1,resline+1):
+                        freq.append(L[i+1])
+    
+            if len(L)==6 and L[0]=='Mode' and L[1]=='num.' and L[3]=='-' and L[4]=='Factor:':
+                hr=L[5]
+                str1=hr[0:8]
+                str2=hr[-3:]
+                hr=str1+'E'+str2
+                huangrhys.append(float(hr))
+
+    # Reorgnaization energy and intra-molecular electron-phonon coupling
+    freq_array = np.array(freq) # units: cm^-1
+    huangrhys_array = np.array(huangrhys) # unitless
+
+    # lambda_i = hbar * w_i * S (S is Huang Rhys factor)
+    reorg = freq_array * cm_1tohz * h * jtoev * huangrhys_array # Unit here should be eV
+
+    # lambda_i = g_ii^2 / (hbar*w_i)
+    for i in range(len(freq)):
+        gii_2 = reorg[i] * h * freq[i]
+        gii.append(np.sqrt(gii_2))
+
+    return eng, freq, huangrhys, reorg, gii
+
 def mol_orbital(bset, atoms=None):
     """ Run Gaussian to compute the molecular orbitals for the system
     Args:
@@ -326,7 +457,7 @@ def variance(freqs, g, qpts, temp):
     var (array): variance of the transfer integral J
     sigma (float): standard deviation of the transfer integral J (eV)
     """ 
-    b_e = 1 / np.tanh((hbar*freqs*1e12)/(2*k*temp)) # Bose-Einstein distribution
+    b_e = 1 / np.tanh((h*freqs*1e12)/(2*k*temp)) # Bose-Einstein distribution
     var = (g**2/2) * b_e # freqs in Phonopy is THz, so need to convert to Hz
     sigma = (np.sum(var)/qpts)**0.5 # Square root of variance, have to do normalization over the number of q points 
 

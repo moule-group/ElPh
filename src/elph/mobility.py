@@ -1,5 +1,6 @@
 # Charge carrier mobility using Transient Localization Theory (TLT)
 import numpy as np
+import sys
 import json
 import elph.utils as ut
 from scipy.constants import e, hbar, k
@@ -17,8 +18,9 @@ class Mobility():
     plane (list): The 2D plane for charge transport (ex: yz plane is [1,2])
     distances (list): Specific interaction distances to consider
     translation_dist (float): One of the lattice parameter will be consider into interaction
-    j_ii (list): Intra-molecular transfer integral (Onsite energy) (ex: J_ii)
+    j_ii (float): Intra-molecular transfer integral (Onsite energy) (ex: J_ii)
     j_ij (list): Inter-molecular transfer integral (ex: J_a, J_b, J_c)
+    sigma_ii (float): local electronic phonon coupling (ex: sigma_ii)
     sigma_ij (list): nonlocal electronic phonon coupling (dynamic disorder) (ex: sigma_a, sigma_b, sigma_c)
     temp (float): Temperature in Kelvin (Defaults to 300)
     inverse_htau (float): Inverse of the scattering time (hbar/tau) units in eV (Defaults to 5e-3)
@@ -26,7 +28,7 @@ class Mobility():
     realizations (int): Number of realizations for average calculation (Defaults to 250)
     mob_file (str): The json file containing the mobility parameters (Defaults to "mobility.json")
     """
-    def __init__(self, atoms=None, nx=1, ny=1, nz=1, lattice_vecs=None, plane=None, distances=None, translation_dist=None, j_ii=0.0, j_ij=None, sigma_ij=None, temp=300.0, inverse_htau=5e-3, is_hole=True,realizations=250, 
+    def __init__(self, atoms=None, nx=1, ny=1, nz=1, lattice_vecs=None, plane=None, distances=None, translation_dist=None, j_ii=0.0, j_ij=None, sigma_ii=0.0, sigma_ij=None, temp=300.0, inverse_htau=5e-3, is_hole=True,realizations=250, 
                  mob_file="mobility.json"):
         
         if mob_file:
@@ -43,6 +45,7 @@ class Mobility():
             self.translation_dist = config.get("translation_dist", translation_dist)
             self.j_ii = config.get("j_ii", j_ii)
             self.j_ij = config.get("j_ij", j_ij)
+            self.sigma_ii = config.get("sigma_ii", sigma_ii)
             self.sigma_ij = config.get("sigma_ij", sigma_ij)
             self.temp = config.get("temp", temp)
             self.inverse_htau = config.get("inverse_htau", inverse_htau)
@@ -151,18 +154,19 @@ class Mobility():
     def hamiltonian(self):
         """ Define the tight-binding Hamiltonian matrix for the charge carrier.
         H = H_el + H_ph + H_elph
-        in TLT: H_ph = 0, H_ii = 0
-        H = H_ij + H_elph,nl
+        in original TLT: H_ph = 0, H_ii = 0; but we can add H_ii and H_elph,l
+        H = (H_ii + H_elph,l) + H_ij + H_elph,nl
         ---------------------------------------------
         Return:
         H: Hamiltonian matrix
         """
         _, interaction_matrix = self.interactions()
         Hij_matrix = np.copy(interaction_matrix).astype(float) # Transfer integral matrix (J_ij)
-        gij_matrix = np.copy(interaction_matrix).astype(float) # Dynamic disorder matrix (in TLT, we treat this as static disorder)
+        sigmaij_matrix = np.copy(interaction_matrix).astype(float) # Dynamic disorder matrix (in TLT, we treat this as static disorder)
 
         # Onsite energy matrix (H_ii)
         Hii_matrix = np.diag([self.j_ii]*interaction_matrix.shape[0])
+        sigmaii_matrix = np.diag([self.sigma_ii]*interaction_matrix.shape[0]) # Dynamic disorder matrix (in TLT, we treat this as static disorder)
 
         # Inter-molecular transfer integral matrix (H_ij)
         j1 = self.j_ij[0]
@@ -177,15 +181,15 @@ class Mobility():
         s2 = self.sigma_ij[1]
         s3 = self.sigma_ij[2]
 
-        gij_matrix[gij_matrix==1] = s1
-        gij_matrix[gij_matrix==2] = s2
-        gij_matrix[gij_matrix==3] = s3
+        sigmaij_matrix[sigmaij_matrix==1] = s1
+        sigmaij_matrix[sigmaij_matrix==2] = s2
+        sigmaij_matrix[sigmaij_matrix==3] = s3
 
         #np.random.seed(42)  # Ensures same random values each time
         gaussian_matrix = np.random.normal(0, 1, size=interaction_matrix.shape)
         gaussian_matrix = np.tril(gaussian_matrix) + np.tril(gaussian_matrix, -1).T
     
-        H = Hii_matrix + Hij_matrix + gij_matrix * gaussian_matrix
+        H = Hii_matrix + Hij_matrix + sigmaij_matrix * gaussian_matrix
 
         return H
 
@@ -202,7 +206,7 @@ class Mobility():
         lx2 (float): The localization length in x direction
         ly2 (float): The localization length in y direction
         """
-        dist_vecs, _ = self.interactions()
+        positions = self.generate_lattice()
         factor = -1
         if not self.is_hole: # If hole transport, it will transport at the top edge of the valence band, Boltzmann factor will be positive
             factor = 1
@@ -210,22 +214,29 @@ class Mobility():
         beta = 1 / (k * jtoev * self.temp) # Boltzmann factor 
         h_ij = self.hamiltonian() # Create Hamiltonian matrix
         energies, eigenvecs = np.linalg.eigh(h_ij) # Solve eigenvalues & eigenvectors
-        weights = np.exp(-factor * energies * beta)  # Compute Boltzmann factors
+        operx = np.diag(positions[:,self.plane[0]])
+        opery = np.diag(positions[:,self.plane[1]])
+        weights = np.exp(-factor * energies * beta)
         partition = np.sum(weights)
     
-        operatorx = np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[0]] * h_ij, eigenvecs))
-        operatorx -= np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[0]] * h_ij, eigenvecs)).T
-
-        operatory = np.matmul(eigenvecs.T, np.matmul( dist_vecs[:,:,self.plane[1]]* h_ij, eigenvecs))
-        operatory -= np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[1]] * h_ij, eigenvecs)).T
+        mxX = (eigenvecs.conj().T @ operx @ eigenvecs) # <n|x|m>, where x is the position operator
+        mxY = (eigenvecs.conj().T @ opery @ eigenvecs)
 
         eng_diff = energies[:, None] - energies[None, :]
+        mxX *= eng_diff # (En-Em) * <n|x|m>
+        mxY *= eng_diff
 
-        lx2 = sum(sum(weights * operatorx**2 * 2 / (self.inverse_htau**2 + eng_diff**2)))
-        ly2 = sum(sum(weights * operatory**2 * 2 / (self.inverse_htau**2 + eng_diff**2)))
+        lx2 = sum(sum(weights * (np.abs(mxX)**2) * 2 / (self.inverse_htau**2 + eng_diff**2)))
+        ly2 = sum(sum(weights * (np.abs(mxY)**2) * 2 / (self.inverse_htau**2 + eng_diff**2)))
 
         lx2 /= partition
         ly2 /= partition
+        
+        #operatorx = np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[0]] * h_ij, eigenvecs))
+        #operatorx -= np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[0]] * h_ij, eigenvecs)).T
+
+        #operatory = np.matmul(eigenvecs.T, np.matmul( dist_vecs[:,:,self.plane[1]]* h_ij, eigenvecs))
+        #operatory -= np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[1]] * h_ij, eigenvecs)).T
 
         return lx2, ly2
 
@@ -274,9 +285,9 @@ class Mobility():
         """
         avglx2, avgly2 = self.avg_localization()
         tau = hbar * jtoev / self.inverse_htau # unit: second
-        mobilityx = 1e-16 * e * avglx2/ (2 * tau * k * self.temp) # Unit is cm^2/Vs
+        mobilityx = 1e-16 * e * avglx2 / (2 * tau * k * self.temp) # Unit is cm^2/Vs
         mobilityy = 1e-16 * e * avgly2 / (2 * tau * k * self.temp)
-        mobility_average = 1e-16 * e * 0.5*(avglx2 + avgly2) / (2 * tau * k * self.temp)
+        mobility_average = 1e-16 * e * 0.5 * (avglx2 + avgly2) / (2 * tau * k * self.temp)
 
-        return mobilityx, mobilityy, mobility_average
+        return avglx2, avgly2, mobilityx, mobilityy, mobility_average
 
