@@ -20,11 +20,11 @@ from time import time
 from pathlib import Path
 from phonopy.cui.create_force_sets import create_FORCE_SETS
 from ase.calculators.gaussian import Gaussian, GaussianOptimizer
-from ase.visualize import view
+#from ase.visualize import view
 from ase.neighborlist import natural_cutoffs, neighbor_list
-from ase import Atoms
-from ase.build import sort
-from scipy import sparse 
+#from ase import Atoms
+#from ase.build import sort
+#from scipy import sparse 
 from scipy.constants import h, k
 from collections import OrderedDict, defaultdict
 

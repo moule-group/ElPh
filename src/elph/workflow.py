@@ -94,7 +94,7 @@ def run_j0(mol_list, supercell_matrix, basis):
         with open('j0.json', 'w', encoding='utf-8') as f2:
             json.dump(j0, f2, ensure_ascii=False, indent=4)
 
-def run_epislon(basis):
+def run_lambda(basis):
     """ Run onsite energy calculation using normal mode analysis to get reorganization energy &
     local EP coupling
     Args:
