@@ -337,7 +337,7 @@ def parse_log(logfile1, logfile2):
         
             if len(L)==4 and L[0]=='Deg.' and L[1]=='of' and L[2]=='freedom':
                 num_modes=int(L[3])
-                fulllines=int(num_modes/3)
+                fulllines=int(num_modes/3) # 3 because in Gaussian output, each row have 3 frequencies
         
             if counter < fulllines and len(L) > 4 and L[0]=='Frequencies' and L[1]=='--':
                 freq.append(float(L[2]))
@@ -357,12 +357,12 @@ def parse_log(logfile1, logfile2):
                 hr=str1+'E'+str2
                 huangrhys.append(float(hr))
 
-    # Reorgnaization energy and intra-molecular electron-phonon coupling
-    freq_array = np.array(freq) # units: cm^-1
-    huangrhys_array = np.array(huangrhys) # unitless
+        # Reorgnaization energy and intra-molecular electron-phonon coupling
+        freq_array = np.array(freq) # units: cm^-1
+        huangrhys_array = np.array(huangrhys) # unitless
 
-    # lambda_i = hbar * w_i * S (S is Huang Rhys factor)
-    reorg = freq_array * cm_1tohz * h * jtoev * huangrhys_array # Unit here should be eV
+        # lambda_i = hbar * w_i * S (S is Huang Rhys factor)
+        reorg = freq_array * cm_1tohz * h * jtoev * huangrhys_array # Unit here should be eV
 
     # lambda_i = g_ii^2 / (hbar*w_i)
     gii_squared_cart = np.zeros((len(freq), 3))
