@@ -323,9 +323,13 @@ def parse_log(logfile1, logfile2):
 
     jtoev = 6.241509074460763e+18 
     cm_1tohz = 3e10
+    counter = 0
+    fulllines = 0
+    restline = 0
     freq = []
     huangrhys = []  
     gii_squared = []
+    
     
     with open(logfile2) as log:
     
@@ -336,17 +340,17 @@ def parse_log(logfile1, logfile2):
                 num_modes=int(L[3])
                 fulllines=int(num_modes/3)
     
-            if len(L)==3 and L[0]=='and' and L[1]=='normal' and 'coordinates:':
+            #if len(L)==3 and L[0]=='and' and L[1]=='normal' and 'coordinates:':
         
-                if counter < fulllines and len(L) > 4 and L[0]=='Frequencies' and L[1]=='--':
-                    freq.append(float(L[2]))
-                    freq.append(float(L[3]))
-                    freq.append(float(L[4]))
-                    counter += 1
-                elif counter == fulllines and len(L) > 2 and L[0]=='Frequencies' and L[1]=='--':
-                    resline=num_modes-3*fulllines
-                    for i in range(1,resline+1):
-                        freq.append(L[i+1])
+            if counter < fulllines and len(L) > 4 and L[0]=='Frequencies' and L[1]=='--':
+                freq.append(float(L[2]))
+                freq.append(float(L[3]))
+                freq.append(float(L[4]))
+                counter += 1
+            elif counter == fulllines and len(L) > 2 and L[0]=='Frequencies' and L[1]=='--':
+                restline=num_modes-3*fulllines
+                for i in range(1,restline+1):
+                    freq.append(L[i+1])
     
             if len(L)==6 and L[0]=='Mode' and L[1]=='num.' and L[3]=='-' and L[4]=='Factor:':
                 hr=L[5]
