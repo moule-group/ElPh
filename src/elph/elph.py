@@ -330,7 +330,6 @@ def parse_log(logfile1, logfile2):
     huangrhys = []  
     gii_squared = []
     
-    
     with open(logfile2) as log:
     
         for l in log.readlines():
@@ -347,6 +346,7 @@ def parse_log(logfile1, logfile2):
                 freq.append(float(L[3]))
                 freq.append(float(L[4]))
                 counter += 1
+
             elif counter == fulllines and len(L) > 2 and L[0]=='Frequencies' and L[1]=='--':
                 restline=num_modes-3*fulllines
                 for i in range(1,restline+1):
