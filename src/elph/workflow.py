@@ -110,11 +110,13 @@ def run_lambda(basis):
         print(' Running local EPC calculation ... ')
         os.mkdir(os.path.join(main_path, 'local'))
         os.chdir(os.path.join(main_path, 'local'))
-    
-        ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='neutral', ncharge=0)
-        ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', ncharge=1)
 
-        ep.hr_factor()
+        if not os.path.exists(f'{main_path}/local/cation.log'):
+    
+            ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='neutral', ncharge=0)
+            ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', ncharge=1)
+            ep.hr_factor()
+            
         eng_n, freq_n, huangrhys_n, reorg_n, gii_n, gii_n_cart = ep.parse_log('neutral.log', 'hr_neutral.log')
         eng_c, freq_c, huangrhys_c, reorg_c, gii_c, gii_c_cart = ep.parse_log('cation.log', 'hr_cation.log')
         # 4-point method

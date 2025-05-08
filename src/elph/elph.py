@@ -338,8 +338,6 @@ def parse_log(logfile1, logfile2):
             if len(L)==4 and L[0]=='Deg.' and L[1]=='of' and L[2]=='freedom':
                 num_modes=int(L[3])
                 fulllines=int(num_modes/3)
-    
-            #if len(L)==3 and L[0]=='and' and L[1]=='normal' and 'coordinates:':
         
             if counter < fulllines and len(L) > 4 and L[0]=='Frequencies' and L[1]=='--':
                 freq.append(float(L[2]))
