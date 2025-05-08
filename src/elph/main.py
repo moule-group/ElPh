@@ -22,7 +22,7 @@ def main():
 
     try:
         if args.workflow == 1: 
-            run_j0(args.homo, args.mol, args.supercell, args.basis) # Run Gaussian with optimization 
+            run_j0(args.mol, args.supercell, args.basis) # Run Gaussian with optimization 
             run_lambda(args.basis)
             run_disp_j(args.basis) # Create displaced dimers and calculate J_ij of dimers.
             run_matrix(args.mesh, args.supercell) # Calculate electron phonon coupling matrix (including local and non-local part)
