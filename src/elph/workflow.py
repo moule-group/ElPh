@@ -115,8 +115,8 @@ def run_epislon(basis):
         ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', ncharge=1)
 
         ep.hr_factor()
-        eng, freq_n, huangrhys_n, reorg_n, gii_n = ep.parse_log('hr_neutral.log')
-        _, freq_c, huangrhys_c, reorg_c, gii_c = ep.parse_log('hr_cation.log')
+        eng, freq_n, huangrhys_n, reorg_n, gii_n, gii_n_cart = ep.parse_log('hr_neutral.log')
+        _, freq_c, huangrhys_c, reorg_c, gii_c, gii_c_cart = ep.parse_log('hr_cation.log')
         # 4-point method
         # Calculate onsite energy for relaxed neutral molecule (Rn)
         #os.mkdir(os.path.join(main_path, 'reorgE', 'neutral_opt'))
@@ -156,13 +156,25 @@ def run_epislon(basis):
         #        }
 
         local = {'onsite_eng': eng,
-                 'reorg_eng_n': reorg_n,
-                 'reorg_eng_c': reorg_c,
+                 'reorg_eng_n': sum(reorg_n),
+                 'reorg_eng_c': sum(reorg_c),
                 }
         with open('local_epc.json', 'w', encoding='utf-8') as f:
-            json.dump(local, f, ensure_ascii=False, indent=4) 
+            json.dump(local, f, ensure_ascii=False, indent=4)
 
-    return reorg_n, reorg_c, freq_n, freq_c, huangrhys_n, huangrhys_c, gii_n, gii_c
+        data = {'gii_n': gii_n,
+                'gii_c': gii_c,
+                'gii_n_cart': gii_n_cart,
+                'gii_c_cart': gii_c_cart,
+                'freq_n': freq_n,
+                'freq_c': freq_c,
+                'huangrhys_n': huangrhys_n,
+                'huangrhys_c': huangrhys_c,
+                'reorg_eng_n': reorg_n,
+                'reorg_eng_c': reorg_c
+               }
+        np.savez_compressed('local_epc.npz', **data) 
+        os.chdir(main_path)
 
 def run_disp_j(basis):
     """ Main function for running Gaussian and Catnip to get transfer integral J for displaced molecules and dimers
@@ -263,33 +275,48 @@ def run_matrix(mesh,sc):
     displacement_B = displacement[:,mapping_B,:]  # Assign the corresponding displacement
     displacement_C = displacement[:,mapping_C,:]  # Assign the corresponding displacement
          
-    epcA = np.einsum('ij,kij->k', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
-    epcB = np.einsum('ij,kij->k', matrix_B, displacement_B)  # We get coefficient g_IJ here           
-    epcC = np.einsum('ij,kij->k', matrix_C, displacement_C)      
+    #epcA = np.einsum('ij,kij->k', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
+    #epcB = np.einsum('ij,kij->k', matrix_B, displacement_B)  # We get coefficient g_IJ here           
+    #epcC = np.einsum('ij,kij->k', matrix_C, displacement_C)  
 
-    svd_epcA = np.einsum('ij,kij->kj', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
-    svd_epcB = np.einsum('ij,kij->kj', matrix_B, displacement_B)  # The shape here is k,3           
-    svd_epcC = np.einsum('ij,kij->kj', matrix_C, displacement_C)      
-                                                                    
-    epc = {'L':epcL,
-           'A':epcA,
-           'B':epcB,
-           'C':epcC}
+    gii_n_squared = np.load('local/local_epc.npz')['gii_n'] # Load the gii from local_epc.json file
+    gii_c_squared = np.load('local/local_epc.npz')['gii_c'] 
+    gii_n_cart_squared = np.load('local/local_epc.npz')['gii_n_cart'] # cart means the cartesian coordinates
+    gii_c_cart_squared = np.load('local/local_epc.npz')['gii_c_cart']
+    epcL_squared = np.concatenate((gii_n_squared, gii_c_squared), axis=0)
+    epcL_cart_squared = np.concatenate((gii_n_cart_squared, gii_c_cart_squared), axis=0)
+
+    epcA_cart = np.einsum('ij,kij->kj', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z; cartesian); k is the index of phonon modes
+    epcB_cart = np.einsum('ij,kij->kj', matrix_B, displacement_B)  # The shape here is k,3           
+    epcC_cart = np.einsum('ij,kij->kj', matrix_C, displacement_C) 
+
+    epcA_cart_squared = epcA_cart**2
+    epcB_cart_squared = epcB_cart**2
+    epcC_cart_squared = epcC_cart**2
+
+    epcA_squared = np.sum(epcA_cart_squared, axis=1)
+    epcB_squared = np.sum(epcB_cart_squared, axis=1)
+    epcC_squared = np.sum(epcC_cart_squared, axis=1)
+                                      
+    epc_squared = {'L':epcL_squared,
+                   'A':epcA_squared,
+                   'B':epcB_squared,
+                   'C':epcC_squared}
     
-    svd_epc = {'L':svd_epcL,
-               'A':svd_epcA, # This is the epc matrix for running SVD projection
-               'B':svd_epcB,
-               'C':svd_epcC}
+    epc_cart_squared = {'L':epcL_cart_squared,
+                        'A':epcA_cart_squared, # This is the epc matrix for running SVD projection
+                        'B':epcB_cart_squared,
+                        'C':epcC_cart_squared}
     
     # Save the electron-phonon coupling matrix asp a numpy .npz file.
-    np.savez_compressed('epc' + '.npz', **epc)
-    np.savez_compressed('epc_for_svd' + '.npz', **svd_epc) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
+    np.savez_compressed('epc' + '.npz', **epc_squared)
+    np.savez_compressed('epc_cart' + '.npz', **epc_cart_squared) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
 
     # Calculate the variance of the electron-phonon coupling matrix
-    variL, sigmaL = ep.variance(freqs, epcL, nqpts, 298) # Variance for local el-ph coupling matrix
-    variA, sigmaA = ep.variance(freqs, epcA, nqpts, 298) # Variance for dimer A
-    variB, sigmaB = ep.variance(freqs, epcB, nqpts, 298) # Variance for dimer B
-    variC, sigmaC  = ep.variance(freqs, epcC, nqpts, 298) # Variance for dimer C
+    variL, sigmaL = ep.variance(freqs, epcL_squared, nqpts, 298) # Variance for local el-ph coupling matrix
+    variA, sigmaA = ep.variance(freqs, epcA_squared, nqpts, 298) # Variance for dimer A
+    variB, sigmaB = ep.variance(freqs, epcB_squared, nqpts, 298) # Variance for dimer B
+    variC, sigmaC = ep.variance(freqs, epcC_squared, nqpts, 298) # Variance for dimer C
 
     variance = {'vL':variL,
                 'sL':sigmaL,

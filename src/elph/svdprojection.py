@@ -39,23 +39,23 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     print(f"Frequency shape is {freq.shape}")
 
     # Numpy SVD 
-    cp = np.load('epc_for_svd.npz') # Load epc
-    epcA = cp['A'][0:num_modes*nqpts]
-    epcB = cp['B'][0:num_modes*nqpts]
-    epcC = cp['C'][0:num_modes*nqpts]
+    epc_cart = np.load('epc_cart.npz') # Load epc^2
+    epcA_cart = epc_cart['A'][0:num_modes*nqpts]
+    epcB_cart = epc_cart['B'][0:num_modes*nqpts]
+    epcC_cart = epc_cart['C'][0:num_modes*nqpts]
     
     freqs = np.tile(freq[:, np.newaxis], (1, 3))
     b_e = 1 / np.tanh((hbar*freqs*1e12)/(2*k*temp))
     b_e = b_e[0:num_modes*nqpts]
     
     if matrix == 'epc':
-        epc = epcA + epcB + epcC
+        epc = epcA_cart + epcB_cart + epcC_cart
         print(f"EPC shape is {epc.shape}")
         U, S, Vh = np.linalg.svd(epc, full_matrices=True)  # Reduced SVD (if full_matrices is False): U is rotational orthogonal matrix; 
         # S is singular vectors (return singular value in 1D array); Vh is rotational orthogonal matrix
     
     if matrix == 'epcbe':
-        epc = epcA*b_e + epcB*b_e + epcC*b_e
+        epc = epcA_cart*b_e + epcB_cart*b_e + epcC_cart*b_e
         print(f"EPC shape is {epc.shape}")
         U, S, Vh = np.linalg.svd(epc, full_matrices=True)
     

@@ -310,18 +310,21 @@ def parse_log(logfile):
     freq (list): Frequencies of the system (cm^-1)
     huangrhys (list): Huang-Rhys factors for the system (unitless)
     reorg (list): Reorganization energy for the system in eV
-    gii (list): Local electron-phonon coupling for the system in eV
+    gii (list): Square of local electron-phonon coupling for the system in (eV^2)
     """
     data = cclib.io.ccread(logfile)
     moenergy = data.moenergies[0]
     homo_index = data.homos 
     eng = moenergy[homo_index]
+    vibdisp_cart = data.vibdisps
+    vibdisp_cart_squared = vibdisp_cart**2
+    vibdisp_squared = np.sum(vibdisp_cart_squared, axis=1)
 
     jtoev = 6.241509074460763e+18 
     cm_1tohz = 3e10
     freq = []
     huangrhys = []  
-    gii = []
+    gii_squared = []
     
     with open(logfile) as log:
     
@@ -359,11 +362,17 @@ def parse_log(logfile):
     reorg = freq_array * cm_1tohz * h * jtoev * huangrhys_array # Unit here should be eV
 
     # lambda_i = g_ii^2 / (hbar*w_i)
+    gii_squared_cart = np.zeros((len(freq), 3))
     for i in range(len(freq)):
         gii_2 = reorg[i] * h * freq[i]
-        gii.append(np.sqrt(gii_2))
+        gii_squared.append(gii_2)
+        denominator = np.sum(vibdisp_squared[i])
+        gii_squared_x = gii_2 * vibdisp_squared[i][0] / denominator
+        gii_squared_y = gii_2 * vibdisp_squared[i][1] / denominator
+        gii_squared_z = gii_2 * vibdisp_squared[i][2] / denominator
+        gii_squared_cart[i,:] = [gii_squared_x, gii_squared_y, gii_squared_z]
 
-    return eng, freq, huangrhys, reorg, gii
+    return eng, freq, huangrhys, reorg, gii_squared, gii_squared_cart
 
 def mol_orbital(bset, atoms=None):
     """ Run Gaussian to compute the molecular orbitals for the system
@@ -443,12 +452,12 @@ def get_deri_Jmatrix(j_list, delta=0.01):
 
     return matrix
 
-def variance(freqs, g, qpts, temp):
+def variance(freqs, g2, qpts, temp):
     """ Calculate the variance of the transfer integral J
     Apply the formula: Var(J) = <J^2> - <J>^2
     Args:
     freqs: The numpy array of phonon frequencies
-    g: electron-phonon coupling matrix
+    g2: squared electron-phonon coupling matrix
     qpts (int): total kpts used in phonon calculation
     temp (float): Temperture in Kelvin
     svd (bool): If True, need to make freqs array into (x, 3) shape
@@ -458,7 +467,7 @@ def variance(freqs, g, qpts, temp):
     sigma (float): standard deviation of the transfer integral J (eV)
     """ 
     b_e = 1 / np.tanh((h*freqs*1e12)/(2*k*temp)) # Bose-Einstein distribution
-    var = (g**2/2) * b_e # freqs in Phonopy is THz, so need to convert to Hz
+    var = (g2/2) * b_e # freqs in Phonopy is THz, so need to convert to Hz
     sigma = (np.sum(var)/qpts)**0.5 # Square root of variance, have to do normalization over the number of q points 
 
     return var, sigma
