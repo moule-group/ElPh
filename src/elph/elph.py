@@ -310,23 +310,20 @@ def parse_log(logfile1, logfile2):
     eng (float): Onsite energy for the system (eV)
     freq (list): Frequencies of the system (cm^-1)
     huangrhys (list): Huang-Rhys factors for the system (unitless)
-    reorg (list): Reorganization energy for the system in eV
+    reorg_eng (list): Reorganization energy for the system in eV
     gii (list): Square of local electron-phonon coupling for the system in (eV^2)
     """
     data = cclib.io.ccread(logfile1)
     moenergy = data.moenergies[0]
     homo_index = data.homos 
     eng = moenergy[homo_index]
+    freqs = data.vibfreqs # units: cm^-1
     vibdisp_cart = data.vibdisps
     vibdisp_cart_squared = vibdisp_cart**2
     vibdisp_squared = np.sum(vibdisp_cart_squared, axis=1)
 
     jtoev = 6.241509074460763e+18 
-    cm_1tohz = 3e10
-    counter = 0
-    fulllines = 0
-    restline = 0
-    freq = []
+    cm_1tohz = 3e10   
     huangrhys = []  
     gii_squared = []
     
@@ -334,40 +331,21 @@ def parse_log(logfile1, logfile2):
     
         for l in log.readlines():
             L = l.split()
-        
-            if len(L)==4 and L[0]=='Deg.' and L[1]=='of' and L[2]=='freedom':
-                num_modes=int(L[3])
-                fulllines=int(num_modes/3) # 3 because in Gaussian output, each row have 3 frequencies
-        
-            if counter < fulllines and len(L) > 4 and L[0]=='Frequencies' and L[1]=='--':
-                freq.append(float(L[2]))
-                freq.append(float(L[3]))
-                freq.append(float(L[4]))
-                counter += 1
-
-            elif counter == fulllines and len(L) > 2 and L[0]=='Frequencies' and L[1]=='--':
-                restline=num_modes-3*fulllines
-                for i in range(1,restline+1):
-                    freq.append(L[i+1])
     
             if len(L)==6 and L[0]=='Mode' and L[1]=='num.' and L[3]=='-' and L[4]=='Factor:':
                 hr=L[5]
                 str1=hr[0:8]
                 str2=hr[-3:]
                 hr=str1+'E'+str2
-                huangrhys.append(float(hr))
-
-        # Reorgnaization energy and intra-molecular electron-phonon coupling
-        freq_array = np.array(freq) # units: cm^-1
-        huangrhys_array = np.array(huangrhys) # unitless
+                huangrhys.append(float(hr)) # unitless         
 
         # lambda_i = hbar * w_i * S (S is Huang Rhys factor)
-        reorg = freq_array * cm_1tohz * h * jtoev * huangrhys_array # Unit here should be eV
+        reorg_eng = freqs * cm_1tohz * h * jtoev * huangrhys # Unit here should be eV
 
     # lambda_i = g_ii^2 / (hbar*w_i)
-    gii_squared_cart = np.zeros((len(freq), 3))
-    for i in range(len(freq)):
-        gii_2 = reorg[i] * h * freq[i]
+    gii_squared_cart = np.zeros((len(freqs), 3))
+    for i in range(len(freqs)):
+        gii_2 = reorg_eng[i] * h * freqs[i]
         gii_squared.append(gii_2)
         denominator = np.sum(vibdisp_squared[i])
         gii_squared_x = gii_2 * vibdisp_squared[i][0] / denominator
@@ -375,7 +353,7 @@ def parse_log(logfile1, logfile2):
         gii_squared_z = gii_2 * vibdisp_squared[i][2] / denominator
         gii_squared_cart[i,:] = [gii_squared_x, gii_squared_y, gii_squared_z]
 
-    return eng, freq, huangrhys, reorg, gii_squared, gii_squared_cart
+    return eng, freqs, huangrhys, reorg_eng, gii_squared, gii_squared_cart
 
 def mol_orbital(bset, atoms=None):
     """ Run Gaussian to compute the molecular orbitals for the system
