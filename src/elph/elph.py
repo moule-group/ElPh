@@ -299,11 +299,12 @@ def hr_factor():
     subprocess.run('g16 < hr_cation.com > hr_cation.log', shell=True)
     subprocess.run('g16 < hr_neutral.com > hr_neutral.log', shell=True)
 
-def parse_log(logfile):
+def parse_log(logfile1, logfile2):
     """ Parse the Gaussian log file to get (1) onsite energy (2) frequencies (3) Huang-Rhys factors
     (4) reorganization energy (5) local EPC
     Args:
-    logfile1 (str): Path to the Gaussian log file
+    logfile1 (str): Path to the Gaussian log file (for cclib)
+    logfile2 (str): Path to the Gaussian log file (for bottom part)
     -------------------------------------------
     Returns:
     eng (float): Onsite energy for the system (eV)
@@ -312,7 +313,7 @@ def parse_log(logfile):
     reorg (list): Reorganization energy for the system in eV
     gii (list): Square of local electron-phonon coupling for the system in (eV^2)
     """
-    data = cclib.io.ccread(logfile)
+    data = cclib.io.ccread(logfile1)
     moenergy = data.moenergies[0]
     homo_index = data.homos 
     eng = moenergy[homo_index]
@@ -326,7 +327,7 @@ def parse_log(logfile):
     huangrhys = []  
     gii_squared = []
     
-    with open(logfile) as log:
+    with open(logfile2) as log:
     
         for l in log.readlines():
             L = l.split()

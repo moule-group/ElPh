@@ -115,8 +115,8 @@ def run_lambda(basis):
         ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', ncharge=1)
 
         ep.hr_factor()
-        eng, freq_n, huangrhys_n, reorg_n, gii_n, gii_n_cart = ep.parse_log('hr_neutral.log')
-        _, freq_c, huangrhys_c, reorg_c, gii_c, gii_c_cart = ep.parse_log('hr_cation.log')
+        eng_n, freq_n, huangrhys_n, reorg_n, gii_n, gii_n_cart = ep.parse_log('neutral.log', 'hr_neutral.log')
+        eng_c, freq_c, huangrhys_c, reorg_c, gii_c, gii_c_cart = ep.parse_log('cation.log', 'hr_cation.log')
         # 4-point method
         # Calculate onsite energy for relaxed neutral molecule (Rn)
         #os.mkdir(os.path.join(main_path, 'reorgE', 'neutral_opt'))
@@ -155,10 +155,12 @@ def run_lambda(basis):
         #           'reorg': reorg_eng
         #        }
 
-        local = {'onsite_eng': eng,
+        local = {'eng_n': eng_n,
+                 'eng_c': eng_c,
                  'reorg_eng_n': sum(reorg_n),
                  'reorg_eng_c': sum(reorg_c),
                 }
+        
         with open('local_epc.json', 'w', encoding='utf-8') as f:
             json.dump(local, f, ensure_ascii=False, indent=4)
 
