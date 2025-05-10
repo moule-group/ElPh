@@ -349,7 +349,7 @@ def parse_log(logfile1, logfile2):
     # lambda_i = g_ii^2 / (hbar*w_i)
     gii_squared_cart = np.zeros((len(freqs), 3))
     for i in range(len(freqs)):
-        gii_2 = reorg_eng[i] * h * freqs[i]
+        gii_2 = reorg_eng[i] * h * jtoev * freqs[i] * cm_1tohz
         gii_squared.append(gii_2)
         denominator = np.sum(vibdisp_squared[i])
         gii_squared_x = gii_2 * vibdisp_squared[i][0] / denominator
