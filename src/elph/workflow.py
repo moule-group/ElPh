@@ -325,10 +325,10 @@ def run_matrix(mesh, sc):
     np.savez_compressed('epc_cart' + '.npz', **epc_cart_squared) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
 
     # Calculate the variance of the electron-phonon coupling matrix
-    variL, sigmaL = ep.variance(freqs_l, epcL_squared, 1, 298, unit='cm-1') # Variance for local el-ph coupling matrix
-    variA, sigmaA = ep.variance(freqs_nl, epcA_squared, nqpts, 298) # Variance for dimer A, frequency from phonopy (non-local part)
-    variB, sigmaB = ep.variance(freqs_nl, epcB_squared, nqpts, 298) # Variance for dimer B
-    variC, sigmaC = ep.variance(freqs_nl, epcC_squared, nqpts, 298) # Variance for dimer C
+    _, variL, sigmaL = ep.variance(freqs_l, epcL_squared, 1, 298, unit='cm-1') # Variance for local el-ph coupling matrix
+    _, variA, sigmaA = ep.variance(freqs_nl, epcA_squared, nqpts, 298) # Variance for dimer A, frequency from phonopy (non-local part)
+    _, variB, sigmaB = ep.variance(freqs_nl, epcB_squared, nqpts, 298) # Variance for dimer B
+    _, variC, sigmaC = ep.variance(freqs_nl, epcC_squared, nqpts, 298) # Variance for dimer C
 
     variance = {'vL':variL,
                 'sL':sigmaL,
