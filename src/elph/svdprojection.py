@@ -45,11 +45,11 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     freq_tot = np.concatenate((freq_l, freq_nl), axis=0)
 
     # Numpy SVD 
-    epc_cart = np.load('epc_cart.npz') # Load epc^2
-    epcL_cart = epc_cart['L']
-    epcA_cart = epc_cart['A'][0:num_modes*nqpts]
-    epcB_cart = epc_cart['B'][0:num_modes*nqpts]
-    epcC_cart = epc_cart['C'][0:num_modes*nqpts]
+    epc_cart_squared = np.load('epc_cart.npz') # Load epc^2
+    epcL_cart = np.sqrt(epc_cart_squared['L'])
+    epcA_cart = np.sqrt(epc_cart_squared['A'][0:num_modes*nqpts])
+    epcB_cart = np.sqrt(epc_cart_squared['B'][0:num_modes*nqpts])
+    epcC_cart = np.sqrt(epc_cart_squared['C'][0:num_modes*nqpts])
     
     freqs_l = np.tile(freq_l[:, np.newaxis], (1, 3))
     freqs_nl = np.tile(freq_nl[:, np.newaxis], (1, 3))
