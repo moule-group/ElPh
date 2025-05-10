@@ -1,7 +1,6 @@
 import numpy as np
-from scipy.constants import hbar, k
+import os
 import elph.elphtool as ep
-import yaml
 #from qutip import * # quantum toolbox in python
 
 
@@ -36,8 +35,9 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     coeff_bath : ndarray
         Coefficients of bath phonon modes.
     """
-    freq_l_n = np.load('/local/local_epc.npz')['freq_n']
-    freq_l_c = np.load('/local/local_epc.npz')['freq_c']
+    main_path = main_path = os.getcwd()
+    freq_l_n = np.load(os.path.join(main_path, 'local', 'local_epc.npz'))['freq_n']
+    freq_l_c = np.load(os.path.join(main_path, 'local', 'local_epc.npz'))['freq_c']
     freq_l = np.concatenate((freq_l_n, freq_l_c), axis=0)
     freq_nl = np.loadtxt('frequencies.txt')[0:num_modes*nqpts]
     freq_tot = np.concatenate((freq_l, freq_nl), axis=0)

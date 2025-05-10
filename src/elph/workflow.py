@@ -373,6 +373,7 @@ def run_svd_projection(matrix, nqpts):
     print(" Running phonon modes projections using SVD ... ")
 
     main_path = os.getcwd()
+    os.makedirs(os.path.join(main_path, 'svd'), exist_ok=True) # Create a directory for SVD projection
     atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
     natoms = len(atoms)
     nmodes = 3 * natoms
@@ -385,7 +386,7 @@ def run_svd_projection(matrix, nqpts):
                   'coeff_sys':coeff_sys,
                   'coeff_bath':coeff_bath}
     
-        np.savez_compressed('svd_epc_result' + '.npz', **result) 
+        np.savez_compressed(os.path.join(main_path, 'svd','svd_epc_result.npz'), **result) 
 
     if matrix == 'epcbe':
         svd_epc, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts, matrix='epcbe')
@@ -396,7 +397,7 @@ def run_svd_projection(matrix, nqpts):
                   'coeff_sys':coeff_sys,
                   'coeff_bath':coeff_bath}
     
-        np.savez_compressed('svd_epcbe_result' + '.npz', **result)
+        np.savez_compressed(os.path.join(main_path, 'svd','svd_epcbe_result.npz'), **result)
     
    
     
