@@ -54,7 +54,8 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
 
     print(" Running SVD projection ")
     if matrix == 'epc':
-        epc = epcL_cart + epcA_cart + epcB_cart + epcC_cart
+        epcnl_cart = epcA_cart + epcB_cart + epcC_cart
+        epc = np.concatenate((epcL_cart, epcnl_cart), axis=0)
         print(f"EPC shape is {epc.shape}")
         U, S, Vh = np.linalg.svd(epc, full_matrices=True)  # Reduced SVD (if full_matrices is False): U is rotational orthogonal matrix; 
         # S is singular vectors (return singular value in 1D array); Vh is rotational orthogonal matrix
@@ -63,7 +64,8 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
         boseein_l, _, _ = ep.variance(freqs_l, epcL_cart, 1, temp, unit='cm-1')
         boseein_nl, _, _ = ep.variance(freqs_nl, (epcA_cart + epcB_cart + epcC_cart), nqpts, temp, unit='THz')
         boseein_nl = boseein_nl[0:num_modes*nqpts]
-        epc = epcL_cart*boseein_l + epcA_cart*boseein_nl + epcB_cart*boseein_nl + epcC_cart*boseein_nl
+        epcnl_cart = epcA_cart*boseein_nl + epcB_cart*boseein_nl + epcC_cart*boseein_nl
+        epc = np.concatenate((epcL_cart*boseein_l, epcnl_cart), axis=0)
         print(f"EPC shape is {epc.shape}")
         U, S, Vh = np.linalg.svd(epc, full_matrices=True)
     
