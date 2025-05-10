@@ -2,7 +2,7 @@ import numpy as np
 import os
 import elph.elphtool as ep
 #from qutip import * # quantum toolbox in python
-
+cm_1tothz = 3e-2  
 
 def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     """
@@ -37,7 +37,9 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     """
     main_path = main_path = os.getcwd()
     freq_l_n = np.load(os.path.join(main_path, 'local', 'local_epc.npz'))['freq_n']
+    freq_l_n *= cm_1tothz # Convert to Hz
     freq_l_c = np.load(os.path.join(main_path, 'local', 'local_epc.npz'))['freq_c']
+    freq_l_c *= cm_1tothz # Convert to Hz
     freq_l = np.concatenate((freq_l_n, freq_l_c), axis=0)
     freq_nl = np.loadtxt('frequencies.txt')[0:num_modes*nqpts]
     freq_tot = np.concatenate((freq_l, freq_nl), axis=0)
@@ -78,7 +80,7 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     print('Indices of non-zero singular values=', Snonzero)
 
     P = U[:, Snonzero] @ U[:, Snonzero].T # Projection operator
-    I = np.eye(num_modes * nqpts)
+    I = np.eye(epc.shape[0]) # Identity operator
     Q = I - P # Complement operator
     print(f"Shape of projection operator {P.shape}")
     print(f"Projection operator test: ||P^2 - P|| = {np.linalg.norm(P @ P - P)}")
