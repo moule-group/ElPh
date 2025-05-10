@@ -234,12 +234,13 @@ def create_displacement(delta=0.01):
 	   
         os.chdir(main_path) 
 
-def gaussian_opt(atoms, bset, label, ncharge=0):
+def gaussian_opt(atoms, bset, label, functional, ncharge=0):
     """ Run Gaussian simulation to get the onsite energy for the system
     Args:
     atoms (ASE atoms object)
-    bset (str): Basis set for Gaussian calculation (Defaults to 3-21G*)
+    bset (list): Basis set for Gaussian calculation 
     label (str): Label for the Gaussian calculation
+    functional (list): Functional for Gaussian calculation
     ncharged (int): Charge of the system (0: neutral, 1: hole transport, -1: electron transport)
     -----------------------------------------------
     """
@@ -250,25 +251,28 @@ def gaussian_opt(atoms, bset, label, ncharge=0):
                        charge=ncharge,
                        mult=2*0.5*ncharge+1, # 2S+1
                        save=None,
-                       method='b3lyp',
-                       basis=f'{bset}', # can use 6-31G* 
+                       method=functional[0],
+                       basis=bset[0], # can use 6-31G* 
                        scf='tight',
                        pop='full',
-                       extra='nosymm freq') 
+                       extra='nosymm EmpiricalDispersion=GD3BJ freq') 
 
     opt_calc = GaussianOptimizer(atoms, opt_cmd)
     opt_calc.run(fmax='tight',steps=60)
     ase.io.write(f'{label}.xyz', atoms)
 
-def hr_factor():
-    """ Create Gaussian input files for Huang-Rhys factor calculation
+def hr_factor(bset, functional):
+    """ Create Gaussian input files for Huang-Rhys factor calculation and run Gaussian
+    Args:
+    bset (list): Basis set for Gaussian calculation
+    functional (list): Functional for Gaussian calculation
     ------------------------------------------------
     """
     with open('hr_cation.com', 'w') as f1:
         cmds = ["%mem=16GB\n",
                 "%oldchk=cation.chk\n",
                 "%chk=fc.chk\n",
-                "#P b3lyp/6-31G** Geom=AllCheck Freq=(READFC,FC,ReadFCHT)\n",
+                f"#P {functional[0]}/{bset[0]} EmpiricalDispersion=GD3BJ Geom=AllCheck Freq=(READFC,FC,ReadFCHT)\n",
                 "\n",
                 "Initial=Source=Chk Final=Source=Chk\n",
                 "print=(huangrhys,matrix=JK)\n",
@@ -284,7 +288,7 @@ def hr_factor():
         cmds = ["%mem=16GB\n",
                 "%oldchk=neutral.chk\n",
                 "%chk=fc.chk\n",
-                "#P b3lyp/6-31G** Geom=AllCheck Freq=(READFC,FC,ReadFCHT)\n",
+                f"#P {functional[0]}/{bset[0]} EmpiricalDispersion=GD3BJ Geom=AllCheck Freq=(READFC,FC,ReadFCHT)\n",
                 "\n",
                 "Initial=Source=Chk Final=Source=Chk\n",
                 "print=(huangrhys,matrix=JK)\n",
@@ -355,14 +359,16 @@ def parse_log(logfile1, logfile2):
 
     return eng, freqs, huangrhys, reorg_eng, gii_squared, gii_squared_cart
 
-def mol_orbital(bset, atoms=None):
-    """ Run Gaussian to compute the molecular orbitals for the system
+def mol_orbital(bset, functional, atoms=None):
+    """ Run Gaussian to compute the molecular orbitals coefficient and energy for the system (Single point calculation)
     Args:
-    bset (str): Basis set for Gaussian calculation (Defaults to 3-21G*)
+    bset (list): Basis set for Gaussian calculation 
+    functional (list): Functional for Gaussian calculation 
     atoms (ASE atoms object): optional, if not specified, it will run getGeometry 
     -----------------------------------------------
     Return:
     .pun file which contains molecular orbital for the cacluation later for J 
+    .log file output file from Gaussian
     """
     if not atoms:
         path = os.getcwd()
@@ -376,8 +382,8 @@ def mol_orbital(bset, atoms=None):
                               nprocshared=12,
                               label='mo',
                               save=None,
-                              method='b3lyp',
-                              basis=f'{bset}', # can use 6-31G* 
+                              method=functional[1],
+                              basis=bset[1], # can use 6-31G* 
                               scf='tight',
                               pop='full',
                               extra='nosymm punch=mo iop(3/33=1)') # iop(3/33=1) output one-electron integrals to log file.
@@ -433,25 +439,33 @@ def get_deri_Jmatrix(j_list, delta=0.01):
 
     return matrix
 
-def variance(freqs, g2, qpts, temp):
+def variance(freqs, g2, nqpts, temp, unit='THz'):
     """ Calculate the variance of the transfer integral J
     Apply the formula: Var(J) = <J^2> - <J>^2
     Args:
     freqs: The numpy array of phonon frequencies
     g2: squared electron-phonon coupling matrix
-    qpts (int): total kpts used in phonon calculation
+    nqpts (int): total qpts used in phonon calculation
     temp (float): Temperture in Kelvin
-    svd (bool): If True, need to make freqs array into (x, 3) shape
+    unit (str): unit of the frequencies (THz or cm^-1, defaults to THz)
     ------------------------------------------------
     Returns:
+    boseein (array): Bose-Einstein distribution for phonons
     var (array): variance of the transfer integral J
     sigma (float): standard deviation of the transfer integral J (eV)
     """ 
-    b_e = 1 / np.tanh((h*freqs*1e12)/(2*k*temp)) # Bose-Einstein distribution
-    var = (g2/2) * b_e # freqs in Phonopy is THz, so need to convert to Hz
-    sigma = (np.sum(var)/qpts)**0.5 # Square root of variance, have to do normalization over the number of q points 
+    cm_1tohz = 3e10  
+    if unit == 'THz':
+        boseein = 1 / np.tanh((h*freqs*1e12)/(2*k*temp)) # Bose-Einstein distribution
+        var = (g2/2) * boseein # freqs in Phonopy is THz, so need to convert to Hz
+        sigma = (np.sum(var)/nqpts)**0.5 # Square root of variance, have to do normalization over the number of q points 
 
-    return var, sigma
+    if unit == 'cm-1':
+        boseein = 1 / np.tanh((h*freqs*cm_1tohz)/(2*k*temp))
+        var = (g2/2) * boseein # freqs in Phonopy is THz, so need to convert to Hz
+        sigma = (np.sum(var)/nqpts)**0.5 # Square root of variance, have to do normalization over the number of q points 
+
+    return boseein, var, sigma
 
         
 

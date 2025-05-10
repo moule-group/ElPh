@@ -7,7 +7,7 @@ import sys
 import yaml
 from scipy.constants import hbar
 import elph.utils as ut
-import elph.elph as ep
+import elph.elphtool as ep
 import elph.svdprojection as svd
 from elph.mobility import Mobility
 
@@ -27,13 +27,14 @@ def getGeometry(path):
     
     return file[0]
 
-def run_j0(mol_list, supercell_matrix, basis):
+def run_j0(mol_list, supercell_matrix, basis, func):
     """ Main function for running Gaussian and Catnip to get transfer integral J_0
     Args:
     mol_list (list): After visualization, you need to specify 3 molecules. The order is: 1st; 2nd; 3rd
     supercell_matrix (tuple): The supercell matrix
     basis (str): Gaussian basis sets
-    ########################################################################
+    func (str): Gaussian functional
+    ------------------------------------------------------------
     Here is the example 2D figure below, 1 and 2 are molecules. You have to reference the numbering of Ref; and 3 molecules with * sign.
     ----------------------------
           *      *     *
@@ -44,8 +45,6 @@ def run_j0(mol_list, supercell_matrix, basis):
                         
       #      #       #
     ---------------------------- 
-  
-    ########################################################################
     Return:
     j_A, j_B, j_C as j0.json and j0_eff.json file
     """    
@@ -66,7 +65,7 @@ def run_j0(mol_list, supercell_matrix, basis):
         path_list = ['./1','./2','./3','./A','./B','./C']
         for path in path_list:
             os.chdir(path)
-            ep.mol_orbital(bset=basis) # Run Gaussian to get molecular orbitals
+            ep.mol_orbital(bset=basis, functional=func) # Run Gaussian to get molecular orbitals
             os.chdir(main_path)
 
         # Calculate J 
@@ -94,11 +93,12 @@ def run_j0(mol_list, supercell_matrix, basis):
         with open('j0.json', 'w', encoding='utf-8') as f2:
             json.dump(j0, f2, ensure_ascii=False, indent=4)
 
-def run_lambda(basis):
+def run_lambda(basis, func):
     """ Run onsite energy calculation using normal mode analysis to get reorganization energy &
     local EP coupling
     Args:
     basis (str): Gaussian basis sets
+    funct (str): Gaussian functional
     -----------------------------------------------
     Return:
     local.json file which saves onsite energy & reorganization energy (units: eV)
@@ -113,12 +113,13 @@ def run_lambda(basis):
 
         if not os.path.exists(f'{main_path}/local/cation.log'):
     
-            ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='neutral', ncharge=0)
-            ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', ncharge=1)
-            ep.hr_factor()
+            ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='neutral', functional=func, ncharge=0)
+            ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', functional=func, ncharge=1)
+            ep.hr_factor(bset=basis, functional=func)
 
         eng_n, freq_n, huangrhys_n, reorg_n, gii_n, gii_n_cart = ep.parse_log('neutral.log', 'hr_neutral.log')
         eng_c, freq_c, huangrhys_c, reorg_c, gii_c, gii_c_cart = ep.parse_log('cation.log', 'hr_cation.log')
+
         # 4-point method
         # Calculate onsite energy for relaxed neutral molecule (Rn)
         #os.mkdir(os.path.join(main_path, 'reorgE', 'neutral_opt'))
@@ -180,8 +181,12 @@ def run_lambda(basis):
         np.savez_compressed('local_epc.npz', **data) 
         os.chdir(main_path)
 
-def run_disp_j(basis):
+def run_disp_j(basis, func):
     """ Main function for running Gaussian and Catnip to get transfer integral J for displaced molecules and dimers
+    Args:
+    basis (str): Gaussian basis sets
+    func (str): Gaussian functional
+    ------------------------------------------------------------
     Return:
     j_list (list): The transfer integral list for displaced molecules and dimers!
     """
@@ -200,7 +205,7 @@ def run_disp_j(basis):
         os.chdir(path)  
         for d in dirs:
             os.chdir(d)
-            ep.mol_orbital(bset=basis) # Run Gaussian to get molecular orbitals
+            ep.mol_orbital(bset=basis, functional=func) # Run Gaussian to get molecular orbitals
             os.chdir(os.pardir)
         os.chdir(main_path)
         
@@ -271,7 +276,7 @@ def run_matrix(mesh, sc):
     main_path = os.getcwd()
     atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
     natoms = len(atoms) # Number of atoms in the supercell
-    mod, freqs, nqpts = ep.phonon(natoms,mesh) # Run phonopy modulation to create eigendisplacements list 
+    mod, freqs_nl, nqpts = ep.phonon(natoms,mesh) # Run phonopy modulation to create eigendisplacements list 
     displacement = np.tile(mod, (1, sc[0]*sc[1]*sc[2], 1)) # The shape of displacement is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
     
     # the shape of displacement_list is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
@@ -285,6 +290,9 @@ def run_matrix(mesh, sc):
 
     gii_n_squared = np.load('local/local_epc.npz')['gii_n'] # Load the gii from local_epc.json file
     gii_c_squared = np.load('local/local_epc.npz')['gii_c'] 
+    freqs_l_n = np.load('local/local_epc.npz')['freq_n']
+    freqs_l_c = np.load('local/local_epc.npz')['freq_c']
+    freqs_l = np.concatenate((freqs_l_n, freqs_l_c), axis=0) # Frequency from Gaussian (local part)
     gii_n_cart_squared = np.load('local/local_epc.npz')['gii_n_cart'] # cart means the cartesian coordinates
     gii_c_cart_squared = np.load('local/local_epc.npz')['gii_c_cart']
     epcL_squared = np.concatenate((gii_n_squared, gii_c_squared), axis=0)
@@ -317,10 +325,10 @@ def run_matrix(mesh, sc):
     np.savez_compressed('epc_cart' + '.npz', **epc_cart_squared) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
 
     # Calculate the variance of the electron-phonon coupling matrix
-    variL, sigmaL = ep.variance(freqs, epcL_squared, nqpts, 298) # Variance for local el-ph coupling matrix
-    variA, sigmaA = ep.variance(freqs, epcA_squared, nqpts, 298) # Variance for dimer A
-    variB, sigmaB = ep.variance(freqs, epcB_squared, nqpts, 298) # Variance for dimer B
-    variC, sigmaC = ep.variance(freqs, epcC_squared, nqpts, 298) # Variance for dimer C
+    variL, sigmaL = ep.variance(freqs_l, epcL_squared, 1, 298, unit='cm-1') # Variance for local el-ph coupling matrix
+    variA, sigmaA = ep.variance(freqs_nl, epcA_squared, nqpts, 298) # Variance for dimer A, frequency from phonopy (non-local part)
+    variB, sigmaB = ep.variance(freqs_nl, epcB_squared, nqpts, 298) # Variance for dimer B
+    variC, sigmaC = ep.variance(freqs_nl, epcC_squared, nqpts, 298) # Variance for dimer C
 
     variance = {'vL':variL,
                 'sL':sigmaL,
@@ -372,10 +380,10 @@ def run_svd_projection(matrix, nqpts):
         svd_epc, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts, matrix='epc')
 
         result = {'epc': svd_epc,
-                   'freq_sys':f_sys,
-                   'freq_bath':f_bath,
-                   'coeff_sys':coeff_sys,
-                   'coeff_bath':coeff_bath}
+                  'freq_sys':f_sys,
+                  'freq_bath':f_bath,
+                  'coeff_sys':coeff_sys,
+                  'coeff_bath':coeff_bath}
     
         np.savez_compressed('svd_epc_result' + '.npz', **result) 
 
@@ -383,10 +391,10 @@ def run_svd_projection(matrix, nqpts):
         svd_epc, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts, matrix='epcbe')
 
         result = {'epc': svd_epc,
-                   'freq_sys':f_sys,
-                   'freq_bath':f_bath,
-                   'coeff_sys':coeff_sys,
-                   'coeff_bath':coeff_bath}
+                  'freq_sys':f_sys,
+                  'freq_bath':f_bath,
+                  'coeff_sys':coeff_sys,
+                  'coeff_bath':coeff_bath}
     
         np.savez_compressed('svd_epcbe_result' + '.npz', **result)
     

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.constants import hbar, k
+import elph.elphtool as ep
 import yaml
 #from qutip import * # quantum toolbox in python
 
@@ -35,27 +36,34 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     coeff_bath : ndarray
         Coefficients of bath phonon modes.
     """
-    freq = np.loadtxt('frequencies.txt')[0:num_modes*nqpts]
-    print(f"Frequency shape is {freq.shape}")
+    freq_l_n = np.load('/local/local_epc.npz')['freq_n']
+    freq_l_c = np.load('/local/local_epc.npz')['freq_c']
+    freq_l = np.concatenate((freq_l_n, freq_l_c), axis=0)
+    freq_nl = np.loadtxt('frequencies.txt')[0:num_modes*nqpts]
+    freq_tot = np.concatenate((freq_l, freq_nl), axis=0)
 
     # Numpy SVD 
     epc_cart = np.load('epc_cart.npz') # Load epc^2
+    epcL_cart = epc_cart['L']
     epcA_cart = epc_cart['A'][0:num_modes*nqpts]
     epcB_cart = epc_cart['B'][0:num_modes*nqpts]
     epcC_cart = epc_cart['C'][0:num_modes*nqpts]
     
-    freqs = np.tile(freq[:, np.newaxis], (1, 3))
-    b_e = 1 / np.tanh((hbar*freqs*1e12)/(2*k*temp))
-    b_e = b_e[0:num_modes*nqpts]
-    
+    freqs_l = np.tile(freq_l[:, np.newaxis], (1, 3))
+    freqs_nl = np.tile(freq_nl[:, np.newaxis], (1, 3))
+
+    print(" Running SVD projection ")
     if matrix == 'epc':
-        epc = epcA_cart + epcB_cart + epcC_cart
+        epc = epcL_cart + epcA_cart + epcB_cart + epcC_cart
         print(f"EPC shape is {epc.shape}")
         U, S, Vh = np.linalg.svd(epc, full_matrices=True)  # Reduced SVD (if full_matrices is False): U is rotational orthogonal matrix; 
         # S is singular vectors (return singular value in 1D array); Vh is rotational orthogonal matrix
     
     if matrix == 'epcbe':
-        epc = epcA_cart*b_e + epcB_cart*b_e + epcC_cart*b_e
+        boseein_l, _, _ = ep.variance(freqs_l, epcL_cart, 1, temp, unit='cm-1')
+        boseein_nl, _, _ = ep.variance(freqs_nl, (epcA_cart + epcB_cart + epcC_cart), nqpts, temp, unit='THz')
+        boseein_nl = boseein_nl[0:num_modes*nqpts]
+        epc = epcL_cart*boseein_l + epcA_cart*boseein_nl + epcB_cart*boseein_nl + epcC_cart*boseein_nl
         print(f"EPC shape is {epc.shape}")
         U, S, Vh = np.linalg.svd(epc, full_matrices=True)
     
@@ -74,7 +82,7 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     print(f"Projection operator test: ||P^2 - P|| = {np.linalg.norm(P @ P - P)}")
     print(f"Complement operator test: ||Q^2 - Q|| = {np.linalg.norm(Q @ Q - Q)}")
 
-    hessian = np.diag(freq**2) # Define Hessian matrix
+    hessian = np.diag(freq_tot**2) # Define Hessian matrix
     print(f"Shape of Hessian matrix {hessian.shape}")
     hessian_sys = P @ hessian @ P # system mode
     hessian_bath = Q @ hessian @ Q # bath mode
