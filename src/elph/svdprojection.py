@@ -45,7 +45,7 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     freq_tot = np.concatenate((freq_l, freq_nl), axis=0)
 
     # Numpy SVD 
-    epc_cart = np.load('epc_cart.npz') # Load epc^2
+    epc_cart = np.load('epc_cart.npz') # Load epc
     epcL_cart = epc_cart['L']
     epcA_cart = epc_cart['A'][0:num_modes*nqpts]
     epcB_cart = epc_cart['B'][0:num_modes*nqpts]
@@ -55,6 +55,7 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     freqs_nl = np.tile(freq_nl[:, np.newaxis], (1, 3))
 
     print(" Running SVD projection ")
+
     if matrix == 'epc':
         epcnl_cart = epcA_cart + epcB_cart + epcC_cart
         epc = np.concatenate((epcL_cart, epcnl_cart), axis=0)
@@ -66,10 +67,10 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
         boseein_l, _, _ = ep.variance(freqs_l, epcL_cart, 1, temp, unit='cm-1')
         boseein_nl, _, _ = ep.variance(freqs_nl, (epcA_cart + epcB_cart + epcC_cart), nqpts, temp, unit='THz')
         boseein_nl = boseein_nl[0:num_modes*nqpts]
-        epcnl_cart = epcA_cart*boseein_nl + epcB_cart*boseein_nl + epcC_cart*boseein_nl
-        epc = np.concatenate((epcL_cart*boseein_l, epcnl_cart), axis=0)
-        print(f"EPC shape is {epc.shape}")
-        U, S, Vh = np.linalg.svd(epc, full_matrices=True)
+        epcnl_cart = 0.5*(epcA_cart**2)*boseein_nl + 0.5*(epcB_cart**2)*boseein_nl + 0.5*(epcC_cart**2)*boseein_nl
+        var = np.concatenate((0.5*(epcL_cart**2)*boseein_l, epcnl_cart), axis=0)
+        print(f"EPC shape is {var.shape}")
+        U, S, Vh = np.linalg.svd(var, full_matrices=True)
     
     print(f'Singular values are {S}') 
     print(f"Shape of left orthogonal matrix {U.shape}")
@@ -103,7 +104,7 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
     thztocm_1 = 33.356
     f_sys *= thztocm_1
     f_bath *= thztocm_1
-    print(f"Number of total phonon modes are {num_modes*nqpts}")
+    print(f"Number of total phonon modes are {len(Pnonzero) + len(Qnonzero)}")
     print(f"Number of system phonon modes are {len(Pnonzero)}")
     print(f"Number of bath phonon modes are {len(Qnonzero)}")
     print(f"System phonon modes (LCAO of orginal phonon modes) frequencies are {f_sys} cm-1")
