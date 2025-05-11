@@ -315,14 +315,14 @@ def run_matrix(mesh, sc):
                    'B':epcB_squared,
                    'C':epcC_squared}
     
-    epc_cart_squared = {'L':epcL_cart_squared,
-                        'A':epcA_cart_squared, # This is the epc matrix for running SVD projection
-                        'B':epcB_cart_squared,
-                        'C':epcC_cart_squared}
+    epc_cart = {'L':np.sqrt(epcL_cart_squared),
+                'A':epcA_cart, # This is the epc matrix for running SVD projection
+                'B':epcB_cart,
+                'C':epcC_cart}
     
     # Save the electron-phonon coupling matrix asp a numpy .npz file.
     np.savez_compressed('epc' + '.npz', **epc_squared)
-    np.savez_compressed('epc_cart' + '.npz', **epc_cart_squared) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
+    np.savez_compressed('epc_cart' + '.npz', **epc_cart) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
 
     # Calculate the variance of the electron-phonon coupling matrix
     _, variL, sigmaL = ep.variance(freqs_l, epcL_squared, 1, 298, unit='cm-1') # Variance for local el-ph coupling matrix
