@@ -70,7 +70,7 @@ def svd_projection(num_modes, nqpts, matrix, threshold=1e-9, temp=298):
         epcnl_cart = 0.5*(epcA_cart**2)*boseein_nl + 0.5*(epcB_cart**2)*boseein_nl + 0.5*(epcC_cart**2)*boseein_nl
         epc = np.concatenate((0.5*(epcL_cart**2)*boseein_l, epcnl_cart), axis=0)
         print(f"EPC shape is {epc.shape}")
-        U, S, Vh = np.linalg.svd(epc, full_matrices=True)
+        U, S, Vh = np.linalg.svd(np.sqrt(epc), full_matrices=True)
     
     print(f'Singular values are {S}') 
     print(f"Shape of left orthogonal matrix {U.shape}")
