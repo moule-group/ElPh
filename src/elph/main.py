@@ -8,8 +8,8 @@ def main():
     """
     parser = argparse.ArgumentParser() # Create the parser
     parser.add_argument("-q", "--mesh", type=int, default=[8,8,8], nargs=3, help='Defining a mesh grid. (Defaults to [8,8,8]') # Add an argument: mesh
-    parser.add_argument("-b", "--basis", type=str, default=['6-311G*','6-311+G**'], help='Gaussian basis sets, first:local; second:non-local') # Add an argument: basis
-    parser.add_argument("-f", "--functional", type=str, default=['b3lyp','b3lyp'], help='Gaussian functional, first:local; second:non-local') # Add an argument: functional
+    parser.add_argument("-b", "--basis", type=str, default=['6-311G*','6-311G**'], nargs=2, help='Gaussian basis sets, first:local; second:non-local') # Add an argument: basis
+    parser.add_argument("-f", "--functional", type=str, default=['b3lyp','b3lyp'], nargs=2, help='Gaussian functional, first:local; second:non-local') # Add an argument: functional
     parser.add_argument("-m", "--mol", type=int, nargs=3, help='The numbering of molecule 1 2 and 3') # Add an argument: mol
     parser.add_argument("-s", "--supercell", type=int, nargs=3, default=(2,2,2), help='The supercell matrix (Defaults to (2,2,2) )') # Add an argument: supercell
     parser.add_argument("-o", "--output", type=str, default=None, help='Mobility calculation output name') # Add an argument: filename
