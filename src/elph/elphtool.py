@@ -386,7 +386,7 @@ def mol_orbital(bset, functional, atoms=None):
                               basis=bset[1], # can use 6-31G* 
                               scf='tight',
                               pop='full',
-                              extra='nosymm punch=mo iop(3/33=1)') # iop(3/33=1) output one-electron integrals to log file.
+                              extra='nosymm punch=mo EmpiricalDispersion=GD3BJ iop(3/33=1)') # iop(3/33=1) output one-electron integrals to log file.
 
         atoms.get_potential_energy()
         os.rename('fort.7', os.path.basename(path) + '.pun')
