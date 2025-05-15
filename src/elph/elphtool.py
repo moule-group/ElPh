@@ -268,7 +268,7 @@ def hr_factor(bset, functional):
     functional (list): Functional for Gaussian calculation
     ------------------------------------------------
     """
-    with open('hr_cation.com', 'w') as f1:
+    with open('hr_cation.com', 'w') as f1: # This is from neutral to cation
         cmds = ["%mem=16GB\n",
                 "%oldchk=cation.chk\n",
                 "%chk=fc.chk\n",
@@ -284,7 +284,7 @@ def hr_factor(bset, functional):
           
         f1.writelines(cmds)
 
-    with open('hr_neutral.com', 'w') as f2:
+    with open('hr_neutral.com', 'w') as f2: # This is from cation to neutral 
         cmds = ["%mem=16GB\n",
                 "%oldchk=neutral.chk\n",
                 "%chk=fc.chk\n",
@@ -293,8 +293,8 @@ def hr_factor(bset, functional):
                 "Initial=Source=Chk Final=Source=Chk\n",
                 "print=(huangrhys,matrix=JK)\n",
                 "\n",
-                "neutral.chk\n",
                 "cation.chk\n",
+                "neutral.chk\n",
                 "\n"
                ]
           
@@ -450,7 +450,6 @@ def variance(freqs, g2, nqpts, temp, unit='THz'):
     unit (str): unit of the frequencies (THz or cm^-1, defaults to THz)
     ------------------------------------------------
     Returns:
-    boseein (array): Bose-Einstein distribution for phonons
     var (array): variance of the transfer integral J
     sigma (float): standard deviation of the transfer integral J (eV)
     """ 
@@ -465,7 +464,7 @@ def variance(freqs, g2, nqpts, temp, unit='THz'):
         var = (g2/2) * boseein # freqs in Phonopy is THz, so need to convert to Hz
         sigma = (np.sum(var)/nqpts)**0.5 # Square root of variance, have to do normalization over the number of q points 
 
-    return boseein, var, sigma
+    return var, sigma
 
         
 

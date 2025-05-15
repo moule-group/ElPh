@@ -4,8 +4,7 @@ import json
 import numpy as np
 import os
 import sys
-import yaml
-from scipy.constants import hbar
+from scipy.constants import h, k
 import elph.utils as ut
 import elph.elphtool as ep
 import elph.svdprojection as svd
@@ -363,41 +362,67 @@ def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
     with open(f'{output}.json', 'w', encoding='utf-8') as f:
         json.dump(mobility, f, ensure_ascii=False, indent=4)
 
-def run_svd_projection(matrix, nqpts):
+def run_svd_projection(nqpts, temp=298.0):
     """
     Run SVD projection using numpy
     Args:
-    matrix (str): The matrix to run SVD projection (epc or var)
     nqpts (int): The number of q points to run SVD projection
+    temp (float): The temperature to run SVD projection (Defaults to 298.0)
+    ------------------------------------------------------------
+    Return:
+    2 svd_result.npz files which save the SVD projection result for local and non-local data
     """
     print(" Running phonon modes projections using SVD ... ")
+    cm_1tothz = 3e-2  # Convert cm-1 to THz
 
     main_path = os.getcwd()
     os.makedirs(os.path.join(main_path, 'svd'), exist_ok=True) # Create a directory for SVD projection
     atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
     natoms = len(atoms)
     nmodes = 3 * natoms
-    if matrix == 'epc':
-        svd_epc, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts, matrix='epc')
 
-        result = {'epc': svd_epc,
-                  'freq_sys':f_sys,
-                  'freq_bath':f_bath,
-                  'coeff_sys':coeff_sys,
-                  'coeff_bath':coeff_bath}
+    freq_l_n = np.load(os.path.join(main_path, 'local', 'local_epc.npz'))['freq_n']
+    freq_l_n *= cm_1tothz # Convert to Hz
+    freq_l_c = np.load(os.path.join(main_path, 'local', 'local_epc.npz'))['freq_c']
+    freq_l_c *= cm_1tothz # Convert to Hz
+    freq_l = np.concatenate((freq_l_n, freq_l_c), axis=0)
+    freq_nl = np.loadtxt('frequencies.txt')[0:nmodes*nqpts]
+
+    data = np.load('epc.npz')
+    epcL = np.sqrt(data['L'])
+    epcA = np.sqrt(data['A'][0:nmodes*nqpts]) # These are already in the squared data
+    epcB = np.sqrt(data['B'][0:nmodes*nqpts])
+    epcC = np.sqrt(data['C'][0:nmodes*nqpts])
+
+    be_l = 1 / np.tanh((h*freq_l*1e12) / (2*k*temp)) # Bose-Einstein factor local EPC
+    be_nl = 1 / np.tanh((h*freq_nl*1e12) / (2*k*temp)) # Bose-Einstein factor for non-local EPC
     
-        np.savez_compressed(os.path.join(main_path, 'svd','svd_epc_result.npz'), **result) 
+    epc_l = epcL
+    epc_l *= be_l
+    svd_array_l = np.stack((freq_l, epc_l), axis=1)
+    s_l, f_sys_l, f_bath_l, coeff_sys_l, coeff_bath_l = svd.svd_projection(freq_l, svd_array_l)
 
-    if matrix == 'epcbe':
-        svd_epc, f_sys, f_bath, coeff_sys, coeff_bath = svd.svd_projection(num_modes=nmodes, nqpts=nqpts, matrix='epcbe')
+    epc_nl = epcA + epcB + epcC
+    epc_nl *= be_nl
+    svd_array_nl = np.stack((freq_nl, epc_nl), axis=1)
+    s_nl, f_sys_nl, f_bath_nl, coeff_sys_nl, coeff_bath_nl = svd.svd_projection(freq_nl, svd_array_nl)
 
-        result = {'epc': svd_epc,
-                  'freq_sys':f_sys,
-                  'freq_bath':f_bath,
-                  'coeff_sys':coeff_sys,
-                  'coeff_bath':coeff_bath}
+
+    result_l = {'svd': s_l,
+                'freq_sys':f_sys_l,
+                'freq_bath':f_bath_l,
+                'coeff_sys':coeff_sys_l,
+                'coeff_bath':coeff_bath_l}
     
-        np.savez_compressed(os.path.join(main_path, 'svd','svd_epcbe_result.npz'), **result)
+    result_nl = {'svd': s_nl,
+                'freq_sys':f_sys_nl,
+                'freq_bath':f_bath_nl,
+                'coeff_sys':coeff_sys_nl,
+                'coeff_bath':coeff_bath_nl}
+    
+    np.savez_compressed(os.path.join(main_path, 'svd','svd_result_local.npz'), **result_l) 
+    np.savez_compressed(os.path.join(main_path, 'svd','svd_result_nonlocal.npz'), **result_nl) 
+
     
    
     
