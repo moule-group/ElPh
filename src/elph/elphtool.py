@@ -111,6 +111,56 @@ def neighbor(atoms):
 
     return molecules
 
+def dist_pbc(cell, dist_vecs):
+    """ Apply minimum image convention (PBC) on distance vectors
+    Args:
+    cell (np.array): The unit cell vectors
+    dist_vecs (np.array): The distance vectors array
+    -----------------------------------------------
+    Return:
+    pbc_dist (np.array): The distance vectors array after applying PBC
+    """
+    lattice_inv = np.linalg.inv(cell) # Inverse of the cell matrix
+    original_shape = dist_vecs.shape
+    reshaped_dist = dist_vecs.reshape(-1, 3) # Reshape for matrix multiplication
+    
+    frac_coords = np.dot(reshaped_dist, lattice_inv) # Convert distance vectors to fractional coordinates
+
+    frac_coords = frac_coords - np.round(frac_coords)  # Apply minimum image convention in fractional space
+    pbc_dist = np.dot(frac_coords, cell)  # Convert back to Cartesian coordinates
+    pbc_dist = pbc_dist.reshape(original_shape) # Restore original shape
+    
+    return pbc_dist
+
+def match_molecule(mol_pos, phonopy_pos, cell, tol=1e-6):
+    """
+    Match a single molecule (mono1) to the best subset of atoms in phonopy_pos.
+    Uses periodic boundary conditions to account for molecules at the edges.
+    
+    Parameters:
+    mol_cart: (N, 3) Cartesian positions of the reference molecule
+    phonopy_pos: (M, 3) Cartesian positions of the full structure
+    cell: (3, 3) unit cell vectors
+    tol: distance tolerance in Angstroms
+    ----------------------------------------------------------------------
+    Returns:
+    matching_phonopy: list of indices in phonopy_pos that best match mol1
+    matching_mol : list of indices in mol_pos that best match phonopy_pos, need to compare with monomer.json to get the atom mapping
+    """
+    matching_phonopy = []
+    matching_mol = []
+    
+    for i in range(len(phonopy_pos)):
+        for n in range(len(mol_pos)):
+            dist_vecs = phonopy_pos[i] - mol_pos[n]
+            pbc_dist = dist_pbc(cell, dist_vecs)
+            distance = np.linalg.norm(pbc_dist)
+            if distance < tol:
+                matching_phonopy.append(i)
+                matching_mol.append(n)
+                
+    return matching_phonopy, matching_mol
+
 def unwrap_molecule_dimer(structure_path, supercell_matrix, mol1, mol2, mol3):
     """ Get single molecule and molecular pairs (dimer) files.
     Args:
