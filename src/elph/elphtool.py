@@ -102,11 +102,10 @@ def mol_in_cell(atoms):
     
     return nmol_in_cell
 
-def neighbor(atoms_unitcell, cutoff_input, supercell_matrix, nmols=3):
+def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
     """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
     Args: 
     atoms: ASE atoms object
-    cutoff_input (list): cutoff distance for neighbor list
     supercell_matrix: Supercell size
     nmols: num of molecules that are extracted
     -----------------------------------------------
@@ -117,39 +116,47 @@ def neighbor(atoms_unitcell, cutoff_input, supercell_matrix, nmols=3):
     """
     natoms_in_cell = len(atoms_unitcell) # number of atoms in the unit cell
     nmol_in_cell = mol_in_cell(atoms_unitcell) # number of molecules in the unit cell
-
-    full_mols = []
     atoms = atoms_unitcell * supercell_matrix
     cutoff = natural_cutoffs(atoms)
-    
-    if len(cutoff_input) > 0: # If cutoff_input is provided
-        cutoff = [np.float64(cutoff_input[0]) if x == 0.31 else x for x in cutoff] # increase Hydrogen cutoff
-        cutoff = [np.float64(cutoff_input[1]) if x == 0.76 else x for x in cutoff] # increase Carbon cutoff
-        cutoff = [np.float64(cutoff_input[2]) if x == 0.71 else x for x in cutoff] # increase Nitrogen cutoff
-        cutoff = [np.float64(cutoff_input[3]) if x == 1.05 else x for x in cutoff] # increase Sulfur cutoff
 
-    i,j,S = neighbor_list(quantities='ijS', a=atoms, cutoff=cutoff) # i: atom index, j: neighbor index, S: pbc
+    full_mols = []
 
-    atom_index = []
-    neighbor_index = []
+    attempt = 0
+    max_attempts = 3
+    while attempt < max_attempts:
 
-    for a, b, s in zip(i,j,S):
-        if sum(s) == 0:
-            atom_index.append(int(a))
-            neighbor_index.append(int(b))
+        i,j,S = neighbor_list(quantities='ijS', a=atoms, cutoff=cutoff) # i: atom index, j: neighbor index, S: pbc
 
-    G = nx.Graph() # Initiate networkx
-    for i, j in zip(atom_index, neighbor_index):
-        G.add_edge(int(i), int(j))
+        atom_index = []
+        neighbor_index = []
 
-    molecules = list(nx.connected_components(G))
+        for a, b, s in zip(i,j,S):
+            if sum(s) == 0:
+                atom_index.append(int(a))
+                neighbor_index.append(int(b))
 
-    for mol in molecules:
-        if len(mol) == (natoms_in_cell / nmol_in_cell):
-            full_mols.append(mol)
+        G = nx.Graph() # Initiate networkx
+        for i, j in zip(atom_index, neighbor_index):
+            G.add_edge(int(i), int(j))
+
+        molecules = list(nx.connected_components(G))
+
+        for mol in molecules:
+            if len(mol) == (natoms_in_cell / nmol_in_cell):
+                full_mols.append(mol)
+
+        if len(full_mols) >= 3: # If full molecules are found, break the loop
+            break
         
-    if not full_mols: # If no full molecules are found, exist
-        ut.print_error("No molecules matched the expected atom count of {natoms_in_cell / nmol_in_cell}. Existing...")
+        attempt += 1
+        ut.print_error("No molecules matched the expected atom count of {natoms_in_cell / nmol_in_cell}. Increase the cutoff distance and try again.")
+        cutoff = [np.float64(x+0.02*attempt) if x == 0.31 else x for x in natural_cutoffs(atoms)] # increase Hydrogen cutoff
+        cutoff = [np.float64(x+0.01*attempt) if x == 0.76 else x for x in natural_cutoffs(atoms)] # increase Carbon cutoff
+        cutoff = [np.float64(x+0.01*attempt) if x == 0.71 else x for x in natural_cutoffs(atoms)] # increase Nitrogen cutoff
+        cutoff = [np.float64(x+0.01*attempt) if x == 1.05 else x for x in natural_cutoffs(atoms)] # increase Sulfur cutoff
+
+    if not full_mols:
+        ut.print_error("Failed to find any full molecules after all retries. Exiting.")
         sys.exit(1)
 
     coms = [] 
