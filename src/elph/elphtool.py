@@ -166,6 +166,7 @@ def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
         coms.append(com)
 
     coms_array = np.array(coms)  # shape (n_mols, 3)
+    np.savez_compressed('center_of_mass.npy', coms_array) 
     distance_matrix = squareform(pdist(coms_array)) # Calulate distance matrix 
 
     distances_matrix_0 = distance_matrix[0] # reference molecule (select first row)

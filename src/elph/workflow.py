@@ -47,11 +47,12 @@ def run_j0(supercell_matrix, basis, func, nmols=3):
     j_A, j_B, j_C as j0.json and j0_eff.json file
     """    
     main_path = os.getcwd() # Main directory which contain all subfolders
-    j0_file = glob.glob(os.path.join(main_path, 'j0_eff.json'))
+    j0_file = glob.glob(os.path.join(main_path, 'j', 'j0_eff.json'))
     xyz_file = glob.glob(os.path.join(main_path, '1', 'monomer_1.xyz'))
     if not j0_file: # If j_0.json is not exists, run the following simulation
         try:
             geometry = getGeometry(main_path) # Get the geometry file
+            os.mkdir(os.path.join(main_path, 'j')) 
 
         except FileNotFoundError:
                 ut.print_error("Structure (.cif; CONTCAR ...) file not found in the current directory. Exiting.") 
@@ -60,7 +61,9 @@ def run_j0(supercell_matrix, basis, func, nmols=3):
         if not xyz_file:
             ep.unwrap_molecule_dimer(geometry, supercell_matrix, nmols) # Unwrap the crystal to get single molecule and dimers
         
-        path_list = ['./1','./2','./3','./A','./B','./C']
+        if nmols == 3:
+            path_list = ['./1','./2','./3','./A','./B','./C']
+
         for path in path_list:
             os.chdir(path)
             ep.mol_orbital(bset=basis, functional=func) # Run Gaussian to get molecular orbitals
@@ -85,10 +88,10 @@ def run_j0(supercell_matrix, basis, func, nmols=3):
               'C':f'{jC}'
              }
     
-        with open('j0_eff.json', 'w', encoding='utf-8') as f1:
+        with open(os.path.join(main_path, 'j', 'j0_eff.json'), 'w', encoding='utf-8') as f1:
             json.dump(j0_eff, f1, ensure_ascii=False, indent=4)
             
-        with open('j0.json', 'w', encoding='utf-8') as f2:
+        with open(os.path.join(main_path, 'j', 'j0.json'), 'w', encoding='utf-8') as f2:
             json.dump(j0, f2, ensure_ascii=False, indent=4)
 
 def run_lambda(basis, func):
@@ -209,7 +212,8 @@ def run_disp_j(basis, func):
         
     #### Calculate J ####
     
-    if not os.path.exists(f"{main_path}/C_disp_J.npz"): # Check whether it is necessary to run Catnip
+    if not os.path.exists(os.path(main_path, 'disp_j', 'C_disp_J.npz')): # Check whether it is necessary to run Catnip
+        os.mkdir(os.path.join(main_path, 'disp_j')) # Create a directory for J_ij
         
         dimer_dict = {'A':[1,2],
                       'B':[1,3],
@@ -242,7 +246,7 @@ def run_disp_j(basis, func):
                 j_list.append(j_2)
         
             data = {'J_ij': j_list} 
-            np.savez_compressed(key + '_disp_J.npz', **data)
+            np.savez_compressed(os.path.join(main_path, 'disp_j', f'{key}_disp_J.npz'), **data)
             print(f" Successfully create {key}_disp_J.npz file which saves J_ij!!! ")
         
 def run_matrix(mesh, supercell_matrix):
@@ -255,9 +259,9 @@ def run_matrix(mesh, supercell_matrix):
     supercell_matrix (list): The supercell matrix. (Defaults to [2,2,2])
     """
     ####### Calculate J_ij matrix #########
-    jlist_A = np.load('A_disp_J.npz')['J_ij'] # - +
-    jlist_B = np.load('B_disp_J.npz')['J_ij'] # - +
-    jlist_C = np.load('C_disp_J.npz')['J_ij'] # - + 
+    jlist_A = np.load(os.path.join(main_path, 'disp_j', 'A_disp_J.npz'))['J_ij'] # - +
+    jlist_B = np.load(os.path.join(main_path, 'disp_j', 'B_disp_J.npz'))['J_ij'] # - +
+    jlist_C = np.load(os.path.join(main_path, 'disp_j', 'C_disp_J.npz'))['J_ij'] # - + 
  
     matrix_A = ep.get_deri_Jmatrix(jlist_A)
     matrix_B = ep.get_deri_Jmatrix(jlist_B)
