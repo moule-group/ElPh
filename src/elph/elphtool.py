@@ -102,11 +102,11 @@ def mol_in_cell(atoms):
     
     return nmol_in_cell
 
-def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
+def neighbor(atoms_unitcell, cutoff_input, supercell_matrix, nmols=3):
     """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
     Args: 
     atoms: ASE atoms object
-    cutoff: cutoff distance for neighbor list
+    cutoff_input (list): cutoff distance for neighbor list
     supercell_matrix: Supercell size
     nmols: num of molecules that are extracted
     -----------------------------------------------
@@ -121,9 +121,12 @@ def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
     full_mols = []
     atoms = atoms_unitcell * supercell_matrix
     cutoff = natural_cutoffs(atoms)
-    cutoff = [np.float64(0.35) if x == 0.31 else x for x in cutoff] # increase Carbon cutoff
-    cutoff = [np.float64(0.78) if x == 0.76 else x for x in cutoff] # increase Hydrogen cutoff
-    cutoff = [np.float64(1.06) if x == 1.05 else x for x in cutoff] # increase Sulfur cutoff
+    
+    if len(cutoff_input) > 0: # If cutoff_input is provided
+        cutoff = [np.float64(cutoff_input[0]) if x == 0.31 else x for x in cutoff] # increase Hydrogen cutoff
+        cutoff = [np.float64(cutoff_input[1]) if x == 0.76 else x for x in cutoff] # increase Carbon cutoff
+        cutoff = [np.float64(cutoff_input[2]) if x == 0.71 else x for x in cutoff] # increase Nitrogen cutoff
+        cutoff = [np.float64(cutoff_input[3]) if x == 1.05 else x for x in cutoff] # increase Sulfur cutoff
 
     i,j,S = neighbor_list(quantities='ijS', a=atoms, cutoff=cutoff) # i: atom index, j: neighbor index, S: pbc
 
@@ -144,6 +147,10 @@ def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
     for mol in molecules:
         if len(mol) == (natoms_in_cell / nmol_in_cell):
             full_mols.append(mol)
+        
+    if not full_mols: # If no full molecules are found, exist
+        ut.print_error("No molecules matched the expected atom count of {natoms_in_cell / nmol_in_cell}. Existing...")
+        sys.exit(1)
 
     coms = [] 
     for mol_indices in full_mols: # calculate the center of mass for each full molecule
@@ -220,24 +227,24 @@ def get_displacement(atoms):
             for sign in [-1, 1]:
                 yield (na,vec,sign) 
         
-def create_displacement(delta=0.01):
+def create_displacement(delta=0.01, nmols=3):
     """ Create atomic displacement and return each displaced structures
     Args: 
     delta (float): Magnitude of displacement in Angstrom (Defaults to 0.01A)
+    nmols (int): Number of molecules that are extracted (Defaults to 3)
     """
     main_path = os.getcwd()
     
-    folder_list = ['1', '2', '3', 'A', 'B', 'C']
+    # List of folders to create
+    if nmols == 3:
+        folder_list = ['1', '2', '3', 'A', 'B', 'C']
 
     # Create the folders under the "displacements" directory
     for folder in folder_list:
-        os.makedirs(os.path.join(folder, 'displacements'),exist_ok=True)
+        os.makedirs(os.path.join(folder, 'displacements'), exist_ok=True)
     print(" Finish creating displacements folder! ")
     
-    mol_list = ['1/molecule_1.xyz', '2/molecule_2.xyz', '3/molecule_3.xyz', 'A/dimer_A.xyz', 'B/dimer_B.xyz', 'C/dimer_C.xyz']
-    
     for folder in folder_list:
-	
         os.chdir(folder)
         path = os.getcwd() # current path (1/; 2/; 3/; A/; B/; C/)
         print(f" Currently simulated in folder {path} ")
@@ -253,7 +260,7 @@ def create_displacement(delta=0.01):
             disp_atoms.set_positions(pos)
 	
             disp_name = f"disp_{na}_{vec}_{sign}"
-            os.makedirs(os.path.join(f'./displacements', disp_name), exist_ok=True)
+            os.makedirs(os.path.join('./displacements', disp_name), exist_ok=True)
             os.chdir(f'./displacements/{disp_name}')
             ase.io.write(disp_name+'.xyz', disp_atoms)
             os.chdir('../..')
@@ -278,7 +285,7 @@ def gaussian_opt(atoms, bset, label, functional, ncharge=0):
                        mult=2*0.5*ncharge+1, # 2S+1
                        save=None,
                        method=functional[0],
-                       basis=bset[0], # can use 6-31G* 
+                       basis=bset[0], 
                        scf='tight',
                        pop='full',
                        extra='nosymm EmpiricalDispersion=GD3BJ freq') 
