@@ -40,13 +40,13 @@ def getGeometry(path):
     
     return file[0]
     
-def phonon(natoms, mesh, supercell_matrix):
+def phonon(natoms, mesh, supercell_array):
     """ Obtain FORCE_CONSTANTS file for specific calculator from Phonopy and return normal mode frequencies;
         Run Phonopy modulation to create atomic displacement and return modulation and frequency.
     Args:
     natoms (int): Number of atoms in the system (Defaults to None)
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
-    supercell_matrix (list): Supercell size (Defaults to [2,2,2])
+    supercell_array (list): Supercell size (Defaults to [2,2,2])
     ----------------------------------------------
     Output:
     phonopy_params.yaml file
@@ -72,7 +72,7 @@ def phonon(natoms, mesh, supercell_matrix):
 
     mode = [[q, band_index, 1, 0.0] for q in qpts for band_index in range(natoms*3)]
  
-    phonon.run_modulations(dimension=(supercell_matrix[0],supercell_matrix[1],supercell_matrix[2]), 
+    phonon.run_modulations(dimension=(supercell_array[0],supercell_array[1],supercell_array[2]), 
                            phonon_modes=mode) 
     modulation, supercell = phonon.get_modulations_and_supercell()
     mod = np.real(modulation)
@@ -102,11 +102,11 @@ def mol_in_cell(atoms):
     
     return nmol_in_cell
 
-def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
+def neighbor(atoms_unitcell, supercell_array, nmols=3):
     """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
     Args: 
     atoms: ASE atoms object
-    supercell_matrix: Supercell size
+    supercell_array: Supercell size
     nmols: num of molecules that are extracted
     -----------------------------------------------
     Return:
@@ -116,7 +116,7 @@ def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
     """
     natoms_in_cell = len(atoms_unitcell) # number of atoms in the unit cell
     nmol_in_cell = mol_in_cell(atoms_unitcell) # number of molecules in the unit cell
-    atoms = atoms_unitcell * supercell_matrix
+    atoms = atoms_unitcell * supercell_array
     cutoff = natural_cutoffs(atoms)
 
     full_mols = []
@@ -176,7 +176,7 @@ def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
 
     return atoms, full_mols, nearest_idx
 
-def unwrap_molecule_dimer(structure_path, supercell_matrix, nmols=3):
+def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3):
     """ Get single molecule and molecular pairs (dimer) files.
     Args:
     structure_path (str): structure file path
@@ -188,7 +188,7 @@ def unwrap_molecule_dimer(structure_path, supercell_matrix, nmols=3):
     dimer_{A}.xyz, where A is the labeling (3 files)
     """
     atoms_unitcell = ase.io.read(structure_path) # Load structure
-    atoms, full_mols, nearest_idx = neighbor(atoms_unitcell, supercell_matrix) 
+    atoms, full_mols, nearest_idx = neighbor(atoms_unitcell, supercell_array) 
 
     allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
                                     list(full_mols[nearest_idx[1]]),list(full_mols[nearest_idx[2]])))

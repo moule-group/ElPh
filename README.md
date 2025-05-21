@@ -33,16 +33,16 @@ For installing Catnip (ChArge TraNsfer Integral Package), please refer to https:
 
 ## Non Local Electron Phonon Coupling
 
-First step: Use visualize.py to identify the numbering of molecules, there are 3 molecules need to identify. The order of the numbering is shown in the figure.
+First step:  Input the number of molecules (defaults to 3) needs to be extracted, the code will generate monomer and dimer structure files.
 
-Second step: Prepare input files in the folder: cif file of materials; FORCE_SETS from Phonopy simulation; phonopy_disp.yaml from Phonopy simulation; scripts.
+Second step: Prepare input files in the folder: CONTCAR from vasp output and/or cif file of materials; FORCE_SETS from Phonopy simulation; phonopy_disp.yaml from Phonopy simulation.
 
 Third step: Run elph (provide the numbering of three monomers) to return electron phonon coupling parameter for further research.
 
 Note: We consider 2D plane (high mobility plane of organic semiconductors) and only pick 3 nearest neighbors in this 2D plane. The 3 numbering monomers will be pair A (monomer 1 and 2); pair B (monomer 1 and 3); pair C (monomer 2 and 3), pair A and pair B will be transversed pairs and pair C will be parallel pairs (the shorter lattice parameter in 2D plane).
 
 ```
-elph -m n1 n2 n3
+elph -w 1
 ```
 
 ## SVD Phonon Modes Projection
@@ -67,9 +67,11 @@ elph -w 3
 
 -q --mesh: Defining a mesh grid. (Defaults to [8,8,8])
 
--m --mol: The numbering of molecule 1 2 and 3
+-n --nmol: The number of molecules will be extracted (Defaults to 3)
 
--b --basis: Gaussian basis sets (Defaults to 3-21G*)
+-b --basis: Gaussian basis sets (Defaults to ['6-311G*','6-311G**']) for local and non-local simulation
+
+-f --functional: Gaussian functional (Defaults to['b3lyp','b3lyp']) for local and non-local simulation
 
 -s --supercell: The supercell matrix (Defaults to [2,2,2])
 
