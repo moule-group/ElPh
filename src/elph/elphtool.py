@@ -13,18 +13,14 @@ import numpy as np
 import networkx as nx
 import phonopy
 import subprocess
+import string
 import sys
-import matplotlib.pyplot as plt
 import elph.utils as ut
-from time import time
-from pathlib import Path
-from phonopy.cui.create_force_sets import create_FORCE_SETS
+from itertools import combinations
+from scipy.spatial.distance import pdist, squareform
 from ase.calculators.gaussian import Gaussian, GaussianOptimizer
-#from ase.visualize import view
-from ase.neighborlist import natural_cutoffs, neighbor_list
-#from ase import Atoms
-#from ase.build import sort
-#from scipy import sparse 
+from ase.neighborlist import natural_cutoffs, neighbor_list, NeighborList
+from scipy import sparse 
 from scipy.constants import h, k
 from collections import OrderedDict, defaultdict
 
@@ -44,12 +40,13 @@ def getGeometry(path):
     
     return file[0]
     
-def phonon(natoms,mesh):
+def phonon(natoms, mesh, supercell_matrix):
     """ Obtain FORCE_CONSTANTS file for specific calculator from Phonopy and return normal mode frequencies;
         Run Phonopy modulation to create atomic displacement and return modulation and frequency.
     Args:
     natoms (int): Number of atoms in the system (Defaults to None)
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
+    supercell_matrix (list): Supercell size (Defaults to [2,2,2])
     ----------------------------------------------
     Output:
     phonopy_params.yaml file
@@ -75,7 +72,8 @@ def phonon(natoms,mesh):
 
     mode = [[q, band_index, 1, 0.0] for q in qpts for band_index in range(natoms*3)]
  
-    phonon.run_modulations(dimension=(1,1,1),phonon_modes=mode) 
+    phonon.run_modulations(dimension=(supercell_matrix[0],supercell_matrix[1],supercell_matrix[2]), 
+                           phonon_modes=mode) 
     modulation, supercell = phonon.get_modulations_and_supercell()
     mod = np.real(modulation)
 
@@ -88,12 +86,46 @@ def phonon(natoms,mesh):
     
     return mod, freq, nqpts
 
-def neighbor(atoms):
+def mol_in_cell(atoms):
+    """ Get the number of atoms in the unit cell
+    Args:
+    atoms (ASE Atoms object): molecule or dimer 
+    -----------------------------------------------
+    Return:
+    nmol_in_cell: number of molecules in the unit cell
+    """
+    cutoff = natural_cutoffs(atoms)
+    nl = NeighborList(cutoff, self_interaction=False, bothways=True)
+    nl.update(atoms)
+    matrix = nl.get_connectivity_matrix()
+    nmol_in_cell, _ = sparse.csgraph.connected_components(matrix) # nmol_in_cell is how many molecules in unitcell
+    
+    return nmol_in_cell
+
+def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
     """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
     Args: 
     atoms: ASE atoms object
+    cutoff: cutoff distance for neighbor list
+    supercell_matrix: Supercell size
+    nmols: num of molecules that are extracted
+    -----------------------------------------------
+    Return:
+    atoms : ASE atoms object with supercell
+    full_mols: list of full molecules with atomic indices 
+    nearest_idx: list of indices of the nearest neighbors
     """
-    i,j,S = neighbor_list(quantities='ijS', a=atoms, cutoff=natural_cutoffs(atoms)) # i: atom index, j: neighbor index, S: pbc
+    natoms_in_cell = len(atoms_unitcell) # number of atoms in the unit cell
+    nmol_in_cell = mol_in_cell(atoms_unitcell) # number of molecules in the unit cell
+
+    full_mols = []
+    atoms = atoms_unitcell * supercell_matrix
+    cutoff = natural_cutoffs(atoms)
+    cutoff = [np.float64(0.35) if x == 0.31 else x for x in cutoff] # increase Carbon cutoff
+    cutoff = [np.float64(0.78) if x == 0.76 else x for x in cutoff] # increase Hydrogen cutoff
+    cutoff = [np.float64(1.06) if x == 1.05 else x for x in cutoff] # increase Sulfur cutoff
+
+    i,j,S = neighbor_list(quantities='ijS', a=atoms, cutoff=cutoff) # i: atom index, j: neighbor index, S: pbc
 
     atom_index = []
     neighbor_index = []
@@ -109,124 +141,68 @@ def neighbor(atoms):
 
     molecules = list(nx.connected_components(G))
 
-    return molecules
+    for mol in molecules:
+        if len(mol) == (natoms_in_cell / nmol_in_cell):
+            full_mols.append(mol)
 
-def dist_pbc(cell, dist_vecs):
-    """ Apply minimum image convention (PBC) on distance vectors
-    Args:
-    cell (np.array): The unit cell vectors
-    dist_vecs (np.array): The distance vectors array
-    -----------------------------------------------
-    Return:
-    pbc_dist (np.array): The distance vectors array after applying PBC
-    """
-    lattice_inv = np.linalg.inv(cell) # Inverse of the cell matrix
-    original_shape = dist_vecs.shape
-    reshaped_dist = dist_vecs.reshape(-1, 3) # Reshape for matrix multiplication
-    
-    frac_coords = np.dot(reshaped_dist, lattice_inv) # Convert distance vectors to fractional coordinates
+    coms = [] 
+    for mol_indices in full_mols: # calculate the center of mass for each full molecule
+        mol = atoms[list(mol_indices)]  # extract the molecule
+        com = mol.get_center_of_mass()
+        coms.append(com)
 
-    frac_coords = frac_coords - np.round(frac_coords)  # Apply minimum image convention in fractional space
-    pbc_dist = np.dot(frac_coords, cell)  # Convert back to Cartesian coordinates
-    pbc_dist = pbc_dist.reshape(original_shape) # Restore original shape
-    
-    return pbc_dist
+    coms_array = np.array(coms)  # shape (n_mols, 3)
+    distance_matrix = squareform(pdist(coms_array)) # Calulate distance matrix 
 
-def match_molecule(mol_pos, phonopy_pos, cell, tol=1e-6):
-    """
-    Match a single molecule (mono1) to the best subset of atoms in phonopy_pos.
-    Uses periodic boundary conditions to account for molecules at the edges.
-    
-    Parameters:
-    mol_cart: (N, 3) Cartesian positions of the reference molecule
-    phonopy_pos: (M, 3) Cartesian positions of the full structure
-    cell: (3, 3) unit cell vectors
-    tol: distance tolerance in Angstroms
-    ----------------------------------------------------------------------
-    Returns:
-    matching_phonopy: list of indices in phonopy_pos that best match mol1
-    matching_mol : list of indices in mol_pos that best match phonopy_pos, need to compare with monomer.json to get the atom mapping
-    """
-    matching_phonopy = []
-    matching_mol = []
-    
-    for i in range(len(phonopy_pos)):
-        for n in range(len(mol_pos)):
-            dist_vecs = phonopy_pos[i] - mol_pos[n]
-            pbc_dist = dist_pbc(cell, dist_vecs)
-            distance = np.linalg.norm(pbc_dist)
-            if distance < tol:
-                matching_phonopy.append(i)
-                matching_mol.append(n)
-                
-    return matching_phonopy, matching_mol
+    distances_matrix_0 = distance_matrix[0] # reference molecule (select first row)
+    distances_matrix_0[0] = np.inf # set the diagonal to infinity to ignore self-distance
+    nearest_idx = np.argsort(distances_matrix_0)[:nmols-1] # get the indices of the nearest neighbors
+    nearest_idx.insert(0, 0) # insert the first molecule (itself) at the beginning of the list
 
-def unwrap_molecule_dimer(structure_path, supercell_matrix, mol1, mol2, mol3):
+    return atoms, full_mols, nearest_idx
+
+def unwrap_molecule_dimer(structure_path, supercell_matrix, nmols=3):
     """ Get single molecule and molecular pairs (dimer) files.
     Args:
     structure_path (str): structure file path
     supercell_martix (tuple): supercell size
-    mol1: The numbering of first neighbor molecule
-    mol2: The numbering of second neighbor molecule
-    mol3: The numbering of third neighbor molecule (translation of center molecule)
+    nmols (int): number of molecules that are extracted (Defaults to 3)
     -----------------------------------------------
     Return:
     molecule_{x}.xyz file, where x is the numbering (3 files)
     dimer_{A}.xyz, where A is the labeling (3 files)
     """
-    atoms = ase.io.read(structure_path) # Load structure
-    atoms *= supercell_matrix # Supercell
-    
-    # Group atoms by their molecule index
-    neighbors = neighbor(atoms) 
-    molecules = defaultdict(list) # empty dic for saving molecule POS
-    for mol_idx, atom_idx in enumerate(neighbors): # Loop through every molecules and 
-        molecules[mol_idx].extend(list(atom_idx))
+    atoms_unitcell = ase.io.read(structure_path) # Load structure
+    atoms, full_mols, nearest_idx = neighbor(atoms_unitcell, supercell_matrix) 
 
-    os.mkdir('1')
-    os.mkdir('2')
-    os.mkdir('3')
-    name_mol1 = "1/monomer_1.xyz"
-    name_mol2 = "2/monomer_2.xyz"
-    name_mol3 = "3/monomer_3.xyz"
-    
-    mono1 = atoms[molecules[mol1-1]]
-    mono2 = atoms[molecules[mol2-1]]
-    mono3 = atoms[molecules[mol3-1]]
+    allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
+                                    list(full_mols[nearest_idx[1]]),list(full_mols[nearest_idx[2]])))
+    newmol = atoms[allmols_index]
+    ase.io.write('allmols.xyz', newmol) # Check the geometry of the molecules
+   
+    for i in range(nmols):
+        os.mkdir(f'{i}')
+        name_mol = os.path.join(i, f"monomer_{i}.xyz")
+        mol = atoms[nearest_idx[i]]
+        mol.set_pbc((False, False, False))
+        ase.io.write(name_mol, mol)
 
-    mono1.set_pbc((False, False, False))
-    mono2.set_pbc((False, False, False))
-    mono3.set_pbc((False, False, False))
+    atom_mapping = {}
+    counter = 0
+    for idx in allmols_index:
+        atom_mapping[int(idx)] = counter 
+        counter += 1
     
-    ase.io.write(name_mol1, mono1)
-    ase.io.write(name_mol2, mono2)
-    ase.io.write(name_mol3, mono3)
-    
-    pairs = {'1':molecules[mol1-1],
-             '2':molecules[mol2-1],
-             '3':molecules[mol3-1]}
-    
-    with open('monomer.json', 'w', encoding='utf-8') as f: # Create atom mapping for electron-phonon coupling term (match phonons)
-        json.dump(pairs, f, ensure_ascii=False, indent=4)
+    with open('atom_mapping.json', 'w') as f:
+        f.write(json.dumps(OrderedDict(sorted(atom_mapping.items(), key=lambda t: t[1])), indent=2))
 
-    os.mkdir('A')
-    os.mkdir('B')
-    os.mkdir('C')
-    name_dimerA = "A/dimer_A.xyz"
-    name_dimerB = "B/dimer_B.xyz"
-    name_dimerC = "C/dimer_C.xyz"
-
-    di1 = atoms[molecules[mol1-1]] + atoms[molecules[mol2-1]]
-    di2 = atoms[molecules[mol1-1]] + atoms[molecules[mol3-1]]
-    di3 = atoms[molecules[mol2-1]] + atoms[molecules[mol3-1]]
-
-    di1.set_pbc((False, False, False))
-    di2.set_pbc((False, False, False))
-    di3.set_pbc((False, False, False))
-    
-    ase.io.write(name_dimerA, di1) 
-    ase.io.write(name_dimerB, di2)
-    ase.io.write(name_dimerC, di3)
+    pairs = list(combinations(nearest_idx, 2)) 
+    for j, letter in enumerate(string.ascii_uppercase[:len(pairs)]):
+        os.mkdir(letter)
+        name_dimer = os.path.join(letter, f"dimer_{letter}.xyz")
+        dim = atoms[nearest_idx[pairs[j][0]]] + atoms[nearest_idx[pairs[j][1]]]
+        dim.set_pbc((False, False, False))
+        ase.io.write(name_dimer, dim) 
         
 def get_displacement(atoms):
     """ Get numbering of displaced atom, displacement direction (x,y,z) and sign (+,-) 

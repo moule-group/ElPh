@@ -26,10 +26,9 @@ def getGeometry(path):
     
     return file[0]
 
-def run_j0(mol_list, supercell_matrix, basis, func):
+def run_j0(supercell_matrix, basis, func, nmols=3):
     """ Main function for running Gaussian and Catnip to get transfer integral J_0
     Args:
-    mol_list (list): After visualization, you need to specify 3 molecules. The order is: 1st; 2nd; 3rd
     supercell_matrix (tuple): The supercell matrix
     basis (str): Gaussian basis sets
     func (str): Gaussian functional
@@ -55,11 +54,11 @@ def run_j0(mol_list, supercell_matrix, basis, func):
             geometry = getGeometry(main_path) # Get the geometry file
 
         except FileNotFoundError:
-                ut.print_error("CIF file not found in the current directory. Exiting.") 
+                ut.print_error("Structure (.cif; CONTCAR ...) file not found in the current directory. Exiting.") 
                 sys.exit(1)  # Exit the script with an error
 
         if not xyz_file:
-            ep.unwrap_molecule_dimer(geometry, supercell_matrix, mol_list[0], mol_list[1], mol_list[2]) # Unwrap the crystal to get single molecule and dimers
+            ep.unwrap_molecule_dimer(geometry, supercell_matrix, nmols) # Unwrap the crystal to get single molecule and dimers
         
         path_list = ['./1','./2','./3','./A','./B','./C']
         for path in path_list:
@@ -246,14 +245,14 @@ def run_disp_j(basis, func):
             np.savez_compressed(key + '_disp_J.npz', **data)
             print(f" Successfully create {key}_disp_J.npz file which saves J_ij!!! ")
         
-def run_matrix(mesh, sc):
+def run_matrix(mesh, supercell_matrix):
     """ Calculate electron phonon coupling matrix and then connect with each phonon mode (from Phonopy)
     Dependency: 
     phonon(mesh), this function is to get phonon modes
     ------------------------------------------------------------
     Args:
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
-    sc (list): The supercell matrix. (Defaults to [2,2,2])
+    supercell_matrix (list): The supercell matrix. (Defaults to [2,2,2])
     """
     ####### Calculate J_ij matrix #########
     jlist_A = np.load('A_disp_J.npz')['J_ij'] # - +
@@ -265,24 +264,26 @@ def run_matrix(mesh, sc):
     matrix_C = ep.get_deri_Jmatrix(jlist_C)
     
     ####### Connection with Phonon modes ########
-    with open('monomer.json', 'r') as j:
-        mapping = list(json.load(j).values()) # The numbering of atoms for dimers
-
-    mapping_A = mapping[0] + mapping[1] # molecule 1 + molecule 2
-    mapping_B = mapping[0] + mapping[2] # molecule 1 + molecule 3
-    mapping_C = mapping[1] + mapping[2] # molecule 2 + molecule 3
+    with open('atom_mapping.json', 'r') as json_file:
+        data = json.load(json_file) 
+    mapping = list(map(int, data.keys()))
+    pair_index = list(map(int, data.values()))
     
     main_path = os.getcwd()
     atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
-    natoms = len(atoms) # Number of atoms in the supercell
-    mod, freqs_nl, nqpts = ep.phonon(natoms,mesh) # Run phonopy modulation to create eigendisplacements list 
-    displacement = np.tile(mod, (1, sc[0]*sc[1]*sc[2], 1)) # The shape of displacement is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
+    nmol_in_cell = ep.mol_in_cell(atoms)
+    natoms = len(atoms) # Number of atoms in the unitcell
+    displacement, freqs_nl, nqpts = ep.phonon(natoms, mesh, supercell_matrix) # Run phonopy modulation to create eigendisplacements list 
+    # The shape of displacement is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
     
-    # the shape of displacement_list is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
-    displacement_A = displacement[:,mapping_A,:]  # Assign the corresponding displacement
-    displacement_B = displacement[:,mapping_B,:]  # Assign the corresponding displacement
-    displacement_C = displacement[:,mapping_C,:]  # Assign the corresponding displacement
-         
+    displacement = displacement[:,mapping,:] # Assign the corresponding displacement
+    
+    pair_idxA = pair_index[0:2*(natoms/nmol_in_cell)]
+    pair_idxB = np.concatenate((pair_index[0:(natoms/nmol_in_cell)], pair_index[2*(natoms/nmol_in_cell):]), axis=0)
+    pair_idxC = pair_index[(natoms/nmol_in_cell):]
+    displacement_A = displacement[:,pair_idxA,:]
+    displacement_B = displacement[:,pair_idxB,:]
+    displacement_C = displacement[:,pair_idxC,:]
     #epcA = np.einsum('ij,kij->k', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z); k is the index of phonon modes
     #epcB = np.einsum('ij,kij->k', matrix_B, displacement_B)  # We get coefficient g_IJ here           
     #epcC = np.einsum('ij,kij->k', matrix_C, displacement_C)  
