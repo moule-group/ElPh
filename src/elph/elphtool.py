@@ -40,13 +40,13 @@ def getGeometry(path):
     
     return file[0]
     
-def phonon(natoms, mesh, supercell_matrix):
+def phonon(natoms, mesh, supercell_array):
     """ Obtain FORCE_CONSTANTS file for specific calculator from Phonopy and return normal mode frequencies;
         Run Phonopy modulation to create atomic displacement and return modulation and frequency.
     Args:
     natoms (int): Number of atoms in the system (Defaults to None)
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
-    supercell_matrix (list): Supercell size (Defaults to [2,2,2])
+    supercell_array (list): Supercell size (Defaults to [2,2,2])
     ----------------------------------------------
     Output:
     phonopy_params.yaml file
@@ -72,7 +72,7 @@ def phonon(natoms, mesh, supercell_matrix):
 
     mode = [[q, band_index, 1, 0.0] for q in qpts for band_index in range(natoms*3)]
  
-    phonon.run_modulations(dimension=(supercell_matrix[0],supercell_matrix[1],supercell_matrix[2]), 
+    phonon.run_modulations(dimension=(supercell_array[0],supercell_array[1],supercell_array[2]), 
                            phonon_modes=mode) 
     modulation, supercell = phonon.get_modulations_and_supercell()
     mod = np.real(modulation)
@@ -102,12 +102,11 @@ def mol_in_cell(atoms):
     
     return nmol_in_cell
 
-def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
+def neighbor(atoms_unitcell, supercell_array, nmols=3):
     """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
     Args: 
     atoms: ASE atoms object
-    cutoff: cutoff distance for neighbor list
-    supercell_matrix: Supercell size
+    supercell_array: Supercell size
     nmols: num of molecules that are extracted
     -----------------------------------------------
     Return:
@@ -117,33 +116,48 @@ def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
     """
     natoms_in_cell = len(atoms_unitcell) # number of atoms in the unit cell
     nmol_in_cell = mol_in_cell(atoms_unitcell) # number of molecules in the unit cell
+    atoms = atoms_unitcell * supercell_array
+    cutoff = natural_cutoffs(atoms)
 
     full_mols = []
-    atoms = atoms_unitcell * supercell_matrix
-    cutoff = natural_cutoffs(atoms)
-    cutoff = [np.float64(0.35) if x == 0.31 else x for x in cutoff] # increase Carbon cutoff
-    cutoff = [np.float64(0.78) if x == 0.76 else x for x in cutoff] # increase Hydrogen cutoff
-    cutoff = [np.float64(1.06) if x == 1.05 else x for x in cutoff] # increase Sulfur cutoff
 
-    i,j,S = neighbor_list(quantities='ijS', a=atoms, cutoff=cutoff) # i: atom index, j: neighbor index, S: pbc
+    attempt = 0
+    max_attempts = 3
+    while attempt < max_attempts:
 
-    atom_index = []
-    neighbor_index = []
+        i,j,S = neighbor_list(quantities='ijS', a=atoms, cutoff=cutoff) # i: atom index, j: neighbor index, S: pbc
 
-    for a, b, s in zip(i,j,S):
-        if sum(s) == 0:
-            atom_index.append(int(a))
-            neighbor_index.append(int(b))
+        atom_index = []
+        neighbor_index = []
 
-    G = nx.Graph() # Initiate networkx
-    for i, j in zip(atom_index, neighbor_index):
-        G.add_edge(int(i), int(j))
+        for a, b, s in zip(i,j,S):
+            if sum(s) == 0:
+                atom_index.append(int(a))
+                neighbor_index.append(int(b))
 
-    molecules = list(nx.connected_components(G))
+        G = nx.Graph() # Initiate networkx
+        for i, j in zip(atom_index, neighbor_index):
+            G.add_edge(int(i), int(j))
 
-    for mol in molecules:
-        if len(mol) == (natoms_in_cell / nmol_in_cell):
-            full_mols.append(mol)
+        molecules = list(nx.connected_components(G))
+
+        for mol in molecules:
+            if len(mol) == (natoms_in_cell / nmol_in_cell):
+                full_mols.append(mol)
+
+        if len(full_mols) >= 3: # If full molecules are found, break the loop
+            break
+        
+        attempt += 1
+        ut.print_error("No molecules matched the expected atom count of {natoms_in_cell / nmol_in_cell}. Increase the cutoff distance and try again.")
+        cutoff = [np.float64(x+0.02*attempt) if x == 0.31 else x for x in natural_cutoffs(atoms)] # increase Hydrogen cutoff
+        cutoff = [np.float64(x+0.01*attempt) if x == 0.76 else x for x in natural_cutoffs(atoms)] # increase Carbon cutoff
+        cutoff = [np.float64(x+0.01*attempt) if x == 0.71 else x for x in natural_cutoffs(atoms)] # increase Nitrogen cutoff
+        cutoff = [np.float64(x+0.01*attempt) if x == 1.05 else x for x in natural_cutoffs(atoms)] # increase Sulfur cutoff
+
+    if not full_mols:
+        ut.print_error("Failed to find any full molecules after all retries. Exiting.")
+        sys.exit(1)
 
     coms = [] 
     for mol_indices in full_mols: # calculate the center of mass for each full molecule
@@ -152,6 +166,7 @@ def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
         coms.append(com)
 
     coms_array = np.array(coms)  # shape (n_mols, 3)
+    np.savez_compressed('center_of_mass.npy', coms_array) 
     distance_matrix = squareform(pdist(coms_array)) # Calulate distance matrix 
 
     distances_matrix_0 = distance_matrix[0] # reference molecule (select first row)
@@ -161,7 +176,7 @@ def neighbor(atoms_unitcell, supercell_matrix, nmols=3):
 
     return atoms, full_mols, nearest_idx
 
-def unwrap_molecule_dimer(structure_path, supercell_matrix, nmols=3):
+def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3):
     """ Get single molecule and molecular pairs (dimer) files.
     Args:
     structure_path (str): structure file path
@@ -173,7 +188,7 @@ def unwrap_molecule_dimer(structure_path, supercell_matrix, nmols=3):
     dimer_{A}.xyz, where A is the labeling (3 files)
     """
     atoms_unitcell = ase.io.read(structure_path) # Load structure
-    atoms, full_mols, nearest_idx = neighbor(atoms_unitcell, supercell_matrix) 
+    atoms, full_mols, nearest_idx = neighbor(atoms_unitcell, supercell_array) 
 
     allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
                                     list(full_mols[nearest_idx[1]]),list(full_mols[nearest_idx[2]])))
@@ -220,24 +235,24 @@ def get_displacement(atoms):
             for sign in [-1, 1]:
                 yield (na,vec,sign) 
         
-def create_displacement(delta=0.01):
+def create_displacement(delta=0.01, nmols=3):
     """ Create atomic displacement and return each displaced structures
     Args: 
     delta (float): Magnitude of displacement in Angstrom (Defaults to 0.01A)
+    nmols (int): Number of molecules that are extracted (Defaults to 3)
     """
     main_path = os.getcwd()
     
-    folder_list = ['1', '2', '3', 'A', 'B', 'C']
+    # List of folders to create
+    if nmols == 3:
+        folder_list = ['1', '2', '3', 'A', 'B', 'C']
 
     # Create the folders under the "displacements" directory
     for folder in folder_list:
-        os.makedirs(os.path.join(folder, 'displacements'),exist_ok=True)
+        os.makedirs(os.path.join(folder, 'displacements'), exist_ok=True)
     print(" Finish creating displacements folder! ")
     
-    mol_list = ['1/molecule_1.xyz', '2/molecule_2.xyz', '3/molecule_3.xyz', 'A/dimer_A.xyz', 'B/dimer_B.xyz', 'C/dimer_C.xyz']
-    
     for folder in folder_list:
-	
         os.chdir(folder)
         path = os.getcwd() # current path (1/; 2/; 3/; A/; B/; C/)
         print(f" Currently simulated in folder {path} ")
@@ -253,7 +268,7 @@ def create_displacement(delta=0.01):
             disp_atoms.set_positions(pos)
 	
             disp_name = f"disp_{na}_{vec}_{sign}"
-            os.makedirs(os.path.join(f'./displacements', disp_name), exist_ok=True)
+            os.makedirs(os.path.join('./displacements', disp_name), exist_ok=True)
             os.chdir(f'./displacements/{disp_name}')
             ase.io.write(disp_name+'.xyz', disp_atoms)
             os.chdir('../..')
@@ -278,7 +293,7 @@ def gaussian_opt(atoms, bset, label, functional, ncharge=0):
                        mult=2*0.5*ncharge+1, # 2S+1
                        save=None,
                        method=functional[0],
-                       basis=bset[0], # can use 6-31G* 
+                       basis=bset[0], 
                        scf='tight',
                        pop='full',
                        extra='nosymm EmpiricalDispersion=GD3BJ freq') 
