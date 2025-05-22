@@ -284,9 +284,11 @@ def run_matrix(mesh, supercell_array):
     
     displacement = displacement[:,mapping,:] # Assign the corresponding displacement
     
-    pair_idxA = pair_index[0:2*(natoms/nmol_in_cell)]
-    pair_idxB = np.concatenate((pair_index[0:(natoms/nmol_in_cell)], pair_index[2*(natoms/nmol_in_cell):]), axis=0)
-    pair_idxC = pair_index[(natoms/nmol_in_cell):]
+    index1 = int(2*natoms/nmol_in_cell)
+    index2 = int(natoms/nmol_in_cell)
+    pair_idxA = pair_index[0:index1]
+    pair_idxB = np.concatenate((pair_index[0:index2], pair_index[index1:]), axis=0)
+    pair_idxC = pair_index[index2:]
     displacement_A = displacement[:,pair_idxA,:]
     displacement_B = displacement[:,pair_idxB,:]
     displacement_C = displacement[:,pair_idxC,:]
