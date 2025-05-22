@@ -150,10 +150,10 @@ def neighbor(atoms_unitcell, supercell_array, nmols=3):
         
         attempt += 1
         ut.print_error("No molecules matched the expected atom count of {natoms_in_cell / nmol_in_cell}. Increase the cutoff distance and try again.")
-        cutoff = [np.float64(x+0.02*attempt) if x == 0.31 else x for x in natural_cutoffs(atoms)] # increase Hydrogen cutoff
-        cutoff = [np.float64(x+0.01*attempt) if x == 0.76 else x for x in natural_cutoffs(atoms)] # increase Carbon cutoff
-        cutoff = [np.float64(x+0.01*attempt) if x == 0.71 else x for x in natural_cutoffs(atoms)] # increase Nitrogen cutoff
-        cutoff = [np.float64(x+0.01*attempt) if x == 1.05 else x for x in natural_cutoffs(atoms)] # increase Sulfur cutoff
+        cutoff_h = [np.float64(x+0.02*attempt) if x == 0.31 else x for x in natural_cutoffs(atoms)] # increase Hydrogen cutoff
+        cutoff_c = [np.float64(x+0.01*attempt) if x == 0.76 else x for x in cutoff_h] # increase Carbon cutoff
+        cutoff_n = [np.float64(x+0.01*attempt) if x == 0.71 else x for x in cutoff_c] # increase Nitrogen cutoff
+        cutoff = [np.float64(x+0.01*attempt) if x == 1.05 else x for x in cutoff_n] # increase Sulfur cutoff
 
     if not full_mols:
         ut.print_error("Failed to find any full molecules after all retries. Exiting.")
