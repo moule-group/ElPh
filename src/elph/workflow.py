@@ -105,14 +105,14 @@ def run_lambda(basis, func):
     local.json file which saves onsite energy & reorganization energy (units: eV)
     """
     main_path = os.getcwd()
-    orginal_atoms = ase.io.read(f'{main_path}/1/monomer_1.xyz') # Read the structure file
+    orginal_atoms = ase.io.read(os.path.join(main_path,'1','monomer_1.xyz')) # Read the structure file
 
-    if not os.path.exists(f'{main_path}/local/local_epc.json'):
+    if not os.path.exists(os.path.join(main_path,'local','local_epc.json')):
         print(' Running local EPC calculation ... ')
-        os.mkdir(os.path.join(main_path, 'local'))
-        os.chdir(os.path.join(main_path, 'local'))
+        os.mkdir(os.path.join(main_path,'local'))
+        os.chdir(os.path.join(main_path,'local'))
 
-        if not os.path.exists(f'{main_path}/local/cation.log'):
+        if not os.path.exists(os.path.join(main_path,'local','cation.log')):
     
             ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='neutral', functional=func, ncharge=0)
             ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', functional=func, ncharge=1)
@@ -192,7 +192,7 @@ def run_disp_j(basis, func):
     j_list (list): The transfer integral list for displaced molecules and dimers!
     """
     main_path = os.getcwd()
-    if not os.path.exists(f"{main_path}/C/displacements"):
+    if not os.path.exists(os.path.join(main_path,'C','displacements')):
         print(' Creating displaced molecules and dimers ... ')
         ep.create_displacement()
         
@@ -212,7 +212,7 @@ def run_disp_j(basis, func):
         
     #### Calculate J ####
     
-    if not os.path.exists(os.path(main_path, 'disp_j', 'C_disp_J.npz')): # Check whether it is necessary to run Catnip
+    if not os.path.exists(os.path.join(main_path, 'disp_j', 'C_disp_J.npz')): # Check whether it is necessary to run Catnip
         os.mkdir(os.path.join(main_path, 'disp_j')) # Create a directory for J_ij
         
         dimer_dict = {'A':[1,2],
@@ -248,6 +248,7 @@ def run_disp_j(basis, func):
             data = {'J_ij': j_list} 
             np.savez_compressed(os.path.join(main_path, 'disp_j', f'{key}_disp_J.npz'), **data)
             print(f" Successfully create {key}_disp_J.npz file which saves J_ij!!! ")
+            print(f" ------------------------------------------------------------------- ")
         
 def run_matrix(mesh, supercell_array):
     """ Calculate electron phonon coupling matrix and then connect with each phonon mode (from Phonopy)
@@ -258,6 +259,7 @@ def run_matrix(mesh, supercell_array):
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
     supercell_array (list): The supercell matrix. (Defaults to [2,2,2])
     """
+    main_path = os.getcwd()
     ####### Calculate J_ij matrix #########
     jlist_A = np.load(os.path.join(main_path, 'disp_j', 'A_disp_J.npz'))['J_ij'] # - +
     jlist_B = np.load(os.path.join(main_path, 'disp_j', 'B_disp_J.npz'))['J_ij'] # - +
