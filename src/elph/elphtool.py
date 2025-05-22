@@ -417,7 +417,6 @@ def mol_orbital(bset, functional, atoms=None):
     """
     if not atoms:
         path = os.getcwd()
-        print(f" Now working in this directory {path} ... ")
         geometry = getGeometry(path)
         atoms = ase.io.read(geometry)
     
@@ -435,8 +434,6 @@ def mol_orbital(bset, functional, atoms=None):
 
         atoms.get_potential_energy()
         os.rename('fort.7', os.path.basename(path) + '.pun')
-        
-    print(f' Gaussian simulation for {path} molecular orbitals is done! ')
 
 def run_catnip(path1, path2, path3, path4, path5, path6):
     """ Run Catnip to calculate the transfer integral

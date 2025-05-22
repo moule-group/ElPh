@@ -248,6 +248,7 @@ def run_disp_j(basis, func):
             data = {'J_ij': j_list} 
             np.savez_compressed(os.path.join(main_path, 'disp_j', f'{key}_disp_J.npz'), **data)
             print(f" Successfully create {key}_disp_J.npz file which saves J_ij!!! ")
+            print(f" ------------------------------------------------------------------- ")
         
 def run_matrix(mesh, supercell_array):
     """ Calculate electron phonon coupling matrix and then connect with each phonon mode (from Phonopy)
