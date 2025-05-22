@@ -37,7 +37,7 @@ First step:  Input the number of molecules (defaults to 3) needs to be extracted
 
 Second step: Prepare input files in the folder: CONTCAR from vasp output and/or cif file of materials; FORCE_SETS from Phonopy simulation; phonopy_disp.yaml from Phonopy simulation.
 
-Third step: Run elph (provide the numbering of three monomers) to return electron phonon coupling parameter for further research.
+Third step: Run elph to return electron phonon coupling parameter for further research.
 
 Note: We consider 2D plane (high mobility plane of organic semiconductors) and only pick 3 nearest neighbors in this 2D plane. The 3 numbering monomers will be pair A (monomer 1 and 2); pair B (monomer 1 and 3); pair C (monomer 2 and 3), pair A and pair B will be transversed pairs and pair C will be parallel pairs (the shorter lattice parameter in 2D plane).
 
@@ -80,8 +80,6 @@ elph -w 3
 -o --output: Mobility calculation output name (Defaults to tlt_mobility.json)
 
 -svd --svdqpts: Number of qpoints that SVD projection will apply (Defaults to 1)
-
--mx --matrix: The matrix (epc or variance) that be applied to SVD projection (epc or var, defaults to epc)
 
 ## mobility.json
 
