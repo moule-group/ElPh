@@ -166,13 +166,14 @@ def neighbor(atoms_unitcell, supercell_array, nmols=3):
         coms.append(com)
 
     coms_array = np.array(coms)  # shape (n_mols, 3)
-    np.savez_compressed('center_of_mass.npy', coms_array) 
     distance_matrix = squareform(pdist(coms_array)) # Calulate distance matrix 
 
     distances_matrix_0 = distance_matrix[0] # reference molecule (select first row)
     distances_matrix_0[0] = np.inf # set the diagonal to infinity to ignore self-distance
     nearest_idx = np.argsort(distances_matrix_0)[:nmols-1] # get the indices of the nearest neighbors
     nearest_idx = np.insert(nearest_idx, 0, 0) # insert the first molecule (itself) at the beginning of the list
+
+    np.savez_compressed('center_of_mass', coms_array[nearest_idx,:]) 
 
     return atoms, full_mols, nearest_idx
 
@@ -416,7 +417,6 @@ def mol_orbital(bset, functional, atoms=None):
     """
     if not atoms:
         path = os.getcwd()
-        print(f" Now working in this directory {path} ... ")
         geometry = getGeometry(path)
         atoms = ase.io.read(geometry)
     
@@ -434,8 +434,6 @@ def mol_orbital(bset, functional, atoms=None):
 
         atoms.get_potential_energy()
         os.rename('fort.7', os.path.basename(path) + '.pun')
-        
-    print(f' Gaussian simulation for {path} molecular orbitals is done! ')
 
 def run_catnip(path1, path2, path3, path4, path5, path6):
     """ Run Catnip to calculate the transfer integral
