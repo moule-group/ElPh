@@ -34,19 +34,18 @@ def getGeometry(path):
     Return:
     file: The structure file in the path
     """
-    file = glob.glob(path + "/SPOSCAR") +  glob.glob(path + "/*.xyz") 
+    file = glob.glob(path + "/POSCAR") +  glob.glob(path + "/*.xyz") 
     if len(file) == 0:
         raise FileNotFoundError
     
     return file[0]
     
-def phonon(natoms, mesh, supercell_array):
+def phonon(natoms, mesh):
     """ Obtain FORCE_CONSTANTS file for specific calculator from Phonopy and return normal mode frequencies;
         Run Phonopy modulation to create atomic displacement and return modulation and frequency.
     Args:
     natoms (int): Number of atoms in the system (Defaults to None)
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
-    supercell_array (list): Supercell size (Defaults to [2,2,2])
     ----------------------------------------------
     Output:
     phonopy_params.yaml file
@@ -72,9 +71,9 @@ def phonon(natoms, mesh, supercell_array):
 
     mode = [[q, band_index, 1, 0.0] for q in qpts for band_index in range(natoms*3)]
  
-    phonon.run_modulations(dimension=(supercell_array[0],supercell_array[1],supercell_array[2]), 
+    phonon.run_modulations(dimension=(1,1,1), 
                            phonon_modes=mode) 
-    modulation, supercell = phonon.get_modulations_and_supercell()
+    modulation, _ = phonon.get_modulations_and_supercell()
     mod = np.real(modulation)
 
     index = np.where(freq>0)
@@ -177,6 +176,47 @@ def neighbor(atoms_unitcell, supercell_array, nmols=3):
 
     return atoms, full_mols, nearest_idx
 
+def map_to_middle(coordinates, cell):
+    """ Map the coordinates to the middle of the unit cell
+    Args:
+    coordinates (np.ndarray): Coordinates of the atoms in the supercell
+    cell (np.ndarray): Cell vectors of the supercell
+    -----------------------------------------------
+    Return:
+    coordinates_cell (np.ndarray): Coordinates of the atoms wrapped into [0, 1)
+    """
+    inv_cell = np.linalg.inv(cell)
+    coordinates_cell = coordinates @ inv_cell
+    
+    coordinates_cell = coordinates_cell - np.floor(coordinates_cell) # wrap cell coordinates into [0, 1)
+
+    return coordinates_cell
+
+def mapping_atom(coordinates, cell, unitcell, tol=1e-4):
+    """ Mapping atoms in .xyz file with POSCAR unitcell for the following phonopy modulation
+    Args:
+    cell (np.ndarray): Cell vectors of the unitcell
+    coordinates (np.ndarray): Coordinates of (This ) the atoms in the supercell
+    unitcell (np.ndarray): Coordinates (scaled) of the atoms in the unit cell
+    tol (float): Tolerance for the mapping (Defaults to 1e-4)
+    -----------------------------------------------
+    Return:
+    mapping (list): List of indices of the atoms in the unit cell that resemble to the atoms in the supercell
+    """
+    mapping = []
+    scaled_coordinates = map_to_middle(coordinates, cell)
+    for pos in scaled_coordinates:
+        # Compute distance to all unit cell atoms
+        diffs = np.abs(unitcell - pos)
+        dists = np.linalg.norm(diffs, axis=1) # The distance matrix
+        idx = np.argmin(dists)
+        if dists[idx] < tol:
+            mapping.append(int(idx))
+        else:
+            mapping.append(None)  # or raise error / warning
+    
+    return mapping
+
 def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3):
     """ Get single molecule and molecular pairs (dimer) files.
     Args:
@@ -189,6 +229,8 @@ def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3):
     dimer_{A}.xyz, where A is the labeling (3 files)
     """
     atoms_unitcell = ase.io.read(structure_path) # Load structure
+    cell = atoms_unitcell.get_cell() # Get cell vectors of the unit cell
+    unitcell = atoms_unitcell.get_scaled_positions() # Get scaled positions of the atoms in the unit cell
     atoms, full_mols, nearest_idx = neighbor(atoms_unitcell, supercell_array) 
 
     allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
@@ -204,15 +246,6 @@ def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3):
         mol.set_pbc((False, False, False))
         ase.io.write(name_mol, mol)
 
-    atom_mapping = {}
-    counter = 0
-    for idx in allmols_index:
-        atom_mapping[int(idx)] = counter 
-        counter += 1
-    
-    with open('atom_mapping.json', 'w') as f:
-        f.write(json.dumps(OrderedDict(sorted(atom_mapping.items(), key=lambda t: t[1])), indent=2))
-
     pairs = list(combinations(nearest_idx, 2)) 
     for j, letter in enumerate(string.ascii_uppercase[:len(pairs)]):
         os.mkdir(letter)
@@ -222,6 +255,9 @@ def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3):
         dimer = atoms[atoms_id1] + atoms[atoms_id2]
         dimer.set_pbc((False, False, False))
         ase.io.write(name_dimer, dimer) 
+
+        mapping = mapping_atom(dimer.get_positions(), cell, unitcell, tol=1e-4)
+        np.savez_compressed(os.path.join('mapping', f'map_{letter}.npz'), letter=mapping) # Save the mapping of atoms
         
 def get_displacement(atoms):
     """ Get numbering of displaced atom, displacement direction (x,y,z) and sign (+,-) 
