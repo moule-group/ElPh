@@ -260,7 +260,7 @@ def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3):
         ase.io.write(name_dimer, dimer) 
 
         mapping = mapping_atom(dimer.get_positions(), cell, unitcell, tol=1e-4)
-        np.savez_compressed(os.path.join('mapping', f'map_{letter}.npz'), letter=mapping) # Save the mapping of atoms
+        np.savez_compressed(os.path.join('mapping', f'map_{letter}.npz'), mapping=mapping) # Save the mapping of atoms
         
 def get_displacement(atoms):
     """ Get numbering of displaced atom, displacement direction (x,y,z) and sign (+,-) 

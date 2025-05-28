@@ -279,9 +279,9 @@ def run_matrix(mesh, supercell_array):
     displacement, freqs_nl, nqpts = ep.phonon(natoms, mesh) # Run phonopy modulation to create eigendisplacements list 
     # The shape of displacement is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
     
-    map_idxA = np.load(os.path.join(main_path, 'mapping', 'map_A.npz'))['A'] # Load the pair index for dimer A
-    map_idxB = np.load(os.path.join(main_path, 'mapping', 'map_B.npz'))['B']
-    map_idxC = np.load(os.path.join(main_path, 'mapping', 'map_C.npz'))['C']
+    map_idxA = np.load(os.path.join(main_path, 'mapping', 'map_A.npz'))['mapping'] # Load the pair index for dimer A
+    map_idxB = np.load(os.path.join(main_path, 'mapping', 'map_B.npz'))['mapping']
+    map_idxC = np.load(os.path.join(main_path, 'mapping', 'map_C.npz'))['mapping']
     displacement_A = displacement[:,map_idxA,:]
     displacement_B = displacement[:,map_idxB,:]
     displacement_C = displacement[:,map_idxC,:]
