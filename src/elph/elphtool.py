@@ -169,8 +169,11 @@ def neighbor(atoms_unitcell, supercell_array, nmols=3):
 
     distances_matrix_0 = distance_matrix[0] # reference molecule (select first row)
     distances_matrix_0[0] = np.inf # set the diagonal to infinity to ignore self-distance
-    nearest_idx = np.argsort(distances_matrix_0)[:nmols-1] # get the indices of the nearest neighbors
-    nearest_idx = np.insert(nearest_idx, 0, 0) # insert the first molecule (itself) at the beginning of the list
+    min_dist = np.min(distances_matrix_0)
+    num_min_dist = len(np.where(distances_matrix_0 == min_dist)[0])
+    if nmols == 3: # Some molecules may have the same distance to first molecule
+        nearest_idx = np.argsort(distances_matrix_0)[num_min_dist-1:num_min_dist+1] # get the indices of the nearest neighbors
+        nearest_idx = np.insert(nearest_idx, 0, 0) # insert the first molecule (itself) at the beginning of the list
 
     np.savez_compressed('center_of_mass', coms_array[nearest_idx,:]) 
 
