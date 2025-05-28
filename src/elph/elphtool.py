@@ -34,7 +34,7 @@ def getGeometry(path):
     Return:
     file: The structure file in the path
     """
-    file = glob.glob(path + "/SPOSCAR") 
+    file = glob.glob(path + "/SPOSCAR") +  glob.glob(path + "/*.xyz") 
     if len(file) == 0:
         raise FileNotFoundError
     
