@@ -26,7 +26,7 @@ def getGeometry(path):
     
     return file[0]
 
-def run_j0(supercell_array, basis, func, nmols=3):
+def run_j0(basis, func, supercell_array=[1,1,1], nmols=3):
     """ Main function for running Gaussian and Catnip to get transfer integral J_0
     Args:
     supercell_array (tuple): The supercell matrix
