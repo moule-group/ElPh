@@ -16,11 +16,11 @@ def getGeometry(path):
     The type of the structure files: ".cif"
     Args:
     path: The current directory (use os.getcwd())
-    #########################################
+    ----------------------------------------------
     Return:
     file: The structure file in the path
     """
-    file = glob.glob(path + "/*.cif") +  glob.glob(path + "/*.vasp") + glob.glob(path + "/CONTCAR") + glob.glob(path + "/*.xyz")
+    file = glob.glob(path + "/SPOSCAR") 
     if len(file) == 0:
         raise FileNotFoundError
     
