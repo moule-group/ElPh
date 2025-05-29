@@ -518,7 +518,7 @@ def get_deri_Jmatrix(j_list, delta=0.01):
 
     matrix = (np.abs(j_p) - np.abs(j_n)) / (2 * delta)
 
-    return matrix
+    return np.abs(matrix)
 
 def variance(freqs, g2, nqpts, temp, unit='THz'):
     """ Calculate the variance of the transfer integral J
