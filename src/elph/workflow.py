@@ -230,20 +230,23 @@ def run_disp_j(basis, func):
             offset = len(molecules) # This is because the for loop below only loop through molecule, and number of atoms in dimer is 2 times of a molecule
         
             for na, vec, sign in ep.get_displacement(molecules):  
+        
                 j_1, _ = ep.run_catnip(f'./{mol_1}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
-                                    f'./{mol_2}/{mol_2}.pun', 
-                                    f'./{key}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
-                                    f'./{mol_1}/displacements/disp_{na}_{vec}_{sign}/mo.log', 
-                                    f'./{mol_2}/mo.log', 
-                                    f'./{key}/displacements/disp_{na}_{vec}_{sign}/mo.log')
+                                f'./{mol_2}/{mol_2}.pun', 
+                                f'./{key}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
+                                f'./{mol_1}/displacements/disp_{na}_{vec}_{sign}/mo.log', 
+                                f'./{mol_2}/mo.log', 
+                                f'./{key}/displacements/disp_{na}_{vec}_{sign}/mo.log')
                 j_list.append(j_1)
         
+            for na, vec, sign in ep.get_displacement(molecules):   
+        
                 j_2, _ = ep.run_catnip(f'./{mol_1}/{mol_1}.pun', 
-                                    f'./{mol_2}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
-                                    f'./{key}/displacements/disp_{na+offset}_{vec}_{sign}/disp_{na+offset}_{vec}_{sign}.pun', 
-                                    f'./{mol_1}/mo.log', 
-                                    f'./{mol_2}/displacements/disp_{na}_{vec}_{sign}/mo.log', 
-                                    f'./{key}/displacements/disp_{na+offset}_{vec}_{sign}/mo.log')
+                                f'./{mol_2}/displacements/disp_{na}_{vec}_{sign}/disp_{na}_{vec}_{sign}.pun', 
+                                f'./{key}/displacements/disp_{na+offset}_{vec}_{sign}/disp_{na+offset}_{vec}_{sign}.pun', 
+                                f'./{mol_1}/mo.log', 
+                                f'./{mol_2}/displacements/disp_{na}_{vec}_{sign}/mo.log', 
+                                f'./{key}/displacements/disp_{na+offset}_{vec}_{sign}/mo.log')
                 j_list.append(j_2)
         
             data = {'J_ij': j_list} 
@@ -251,14 +254,13 @@ def run_disp_j(basis, func):
             print(f" Successfully create {key}_disp_J.npz file which saves J_ij!!! ")
             print(f" ------------------------------------------------------------------- ")
         
-def run_matrix(mesh, supercell_array):
+def run_matrix(mesh):
     """ Calculate electron phonon coupling matrix and then connect with each phonon mode (from Phonopy)
     Dependency: 
     phonon(mesh), this function is to get phonon modes
     ------------------------------------------------------------
     Args:
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
-    supercell_array (list): The supercell matrix. (Defaults to [2,2,2])
     """
     main_path = os.getcwd()
     ####### Calculate J_ij matrix #########

@@ -1,49 +1,42 @@
-# Charge carrier mobility using Transient Localization Theory (TLT)
+# Charge carrier mobility using Transient Localization Theory (TLT) and Marcus theory with KMC
 import numpy as np
 import sys
 import json
-import elph.utils as ut
-from scipy.constants import e, hbar, k
+from scipy.spatial import cKDTree
 
-jtoev = 6.241509074460763e+18 # Convert J to eV
+hbar = 6.582e-16 # eV s
+kb = 8.6173e-5 # eV K-1  
+e = 1 # Charge on electron in eV/V
 
 class Mobility():
     """
     Args:
-    atoms (np.array): containing the positions of the atoms in the crystal unit cell as rows, expressed in units of the lattice parameter. 
-    nx (int): indicating the number of times the crystal unit cell is repeated along the x coordinate axis. 
-    ny (int): indicating the number of times the crystal unit cell is repeated along the y coordinate axis. 
-    nz (int): indicating the number of times the crystal unit cell is repeated along the z coordinate axis.
-    lattice_vecs (np.array): Unit cell lattice vectors
-    plane (list): The 2D plane for charge transport (ex: yz plane is [1,2])
-    distances (list): Specific interaction distances to consider
-    translation_dist (float): One of the lattice parameter will be consider into interaction
-    j_ii (float): Intra-molecular transfer integral (Onsite energy) (ex: J_ii)
+    site (np.array): containing the COM of the in the crystal unit cell as rows, expressed in fractional coordinate. 
+    n (int): indicating the number of times the crystal unit cell is repeated along the coordinate axis. 
+    r (float): the cutoff radius for finding nearest neighbors in fractional length (1 means 1 translation)
+    lattice (np.array): Unit cell lattice vectors
     j_ij (list): Inter-molecular transfer integral (ex: J_a, J_b, J_c)
     sigma_ii (float): local electronic phonon coupling (ex: sigma_ii)
     sigma_ij (list): nonlocal electronic phonon coupling (dynamic disorder) (ex: sigma_a, sigma_b, sigma_c)
-    temp (float): Temperature in Kelvin (Defaults to 300)
+    temp (float): Temperature in Kelvin (Defaults to 298)
     inverse_htau (float): Inverse of the scattering time (hbar/tau) units in eV (Defaults to 5e-3)
     is_hole (bool): If True, hole transport, otherwise electron transport (Defaults to True)
     realizations (int): Number of realizations for average calculation (Defaults to 250)
     mob_file (str): The json file containing the mobility parameters (Defaults to "mobility.json")
     """
-    def __init__(self, atoms=None, nx=1, ny=1, nz=1, lattice_vecs=None, plane=None, distances=None, translation_dist=None, j_ii=0.0, j_ij=None, sigma_ii=0.0, sigma_ij=None, temp=300.0, inverse_htau=5e-3, is_hole=True,realizations=250, 
+    def __init__(self, site=None, n=None, r=1, lattice=None, nearest_vecs=None, Lambda=0.0, j_ij=None, sigma_ii=0.0, sigma_ij=None, temp=298.0, inverse_htau=5e-3, is_hole=True, realizations=250, 
                  mob_file="mobility.json"):
         
         if mob_file:
             with open(mob_file, "r") as file:
                 config = json.load(file)
             
-            self.atoms = np.array(config.get("atoms", atoms))
-            self.nx = config.get("nx", nx)
-            self.ny = config.get("ny", ny)
-            self.nz = config.get("nz", nz)
-            self.lattice_vecs = np.array(config.get("lattice_vecs", lattice_vecs))
-            self.plane = config.get("plane", plane)
-            self.distances = config.get("distances", distances)
-            self.translation_dist = config.get("translation_dist", translation_dist)
-            self.j_ii = config.get("j_ii", j_ii)
+            self.site = np.array(config.get("site", site))
+            self.n = config.get("n", n)
+            self.r = config.get("r", r)
+            self.lattice = np.array(config.get("lattice", lattice))
+            self.nearest_vecs = config.get("nearest_vecs", nearest_vecs)
+            self.Lambda = config.get("Lambda", Lambda)
             self.j_ij = config.get("j_ij", j_ij)
             self.sigma_ii = config.get("sigma_ii", sigma_ii)
             self.sigma_ij = config.get("sigma_ij", sigma_ij)
@@ -51,10 +44,21 @@ class Mobility():
             self.inverse_htau = config.get("inverse_htau", inverse_htau)
             self.is_hole = config.get("is_hole", is_hole)
             self.realizations = config.get("realizations", realizations)
-        
+
         else:
-            ut.print_error("Mobility parameters (mobility.json) are missing!")
-            sys.exit(0)
+            self.site = np.array(site)
+            self.n = n
+            self.r = r
+            self.lattice = np.array(lattice)
+            self.nearest_vecs = np.array(nearest_vecs)
+            self.Lambda = Lambda
+            self.j_ij = j_ij
+            self.sigma_ii = sigma_ii
+            self.sigma_ij = sigma_ij
+            self.temp = temp
+            self.inverse_htau = inverse_htau
+            self.is_hole = is_hole
+            self.realizations = realizations
 
     def generate_lattice(self):
         '''
@@ -63,95 +67,47 @@ class Mobility():
         positions (np.array): containing the positions of the atoms in the
         simulation cell as rows, expressed in units of the lattice parameter.
         '''
-        n_in_cell = self.atoms.shape[0]
-        positions = np.zeros((n_in_cell * self.nx * self.ny * self.nz, 3))
+        n_in_cell = self.site.shape[0]
+        positions = np.zeros((n_in_cell * self.n * self.n, 2))
     
         count = 0
-        for a in range(self.nx):
-            for b in range(self.ny):
-                for c in range(self.nz):
-                    positions[count:(count + n_in_cell),] = self.atoms + [a, b, c]
-                    count += n_in_cell
+        for a in range(self.n):
+            for b in range(self.n):
+                positions[count:(count + n_in_cell),] = self.site + [a, b]
+                count += n_in_cell
         return positions
 
-    def dist_pbc(self, dist_vecs):
-        """ Apply minimum image convention (PBC) on distance vectors
-        Args:
-        dist_vecs (np.array): The distance vectors array
-        -----------------------------------------------
-        Return:
-        dist_vecs (np.array): The distance vectors array after applying PBC
-        """
-        for i in range(3):  # 3D case: x, y and z
-            if dist_vecs[:, :, i].any() > self.lattice_vecs[i, i] / 2.:
-                dist_vecs[:, :, i] -= self.lattice_vecs[i, i]
-            elif dist_vecs[:, :, i].any() < -self.lattice_vecs[i, i] / 2.:
-                dist_vecs[:, :, i] += self.lattice_vecs[i, i]
-     
-        return dist_vecs
-
-    def interactions(self):
-        """
-        Compute pairwise interactions with periodic boundary conditions.
+    def interaction(self, sites):
+        """ 
+        Decide type of J based on geometry of sites
         args:
-        postions (np.array): The positions of the atoms in the simulation cell
-        lattice_vectors (np.array (2x2)): Unit cell lattice vectors
-        plane (list): The 2D plane for charge transport (ex: yz plane is [1,2]
-        distances (list): Specific interaction distances to consider
-        translation_dist (float): One of the lattice parameter will be consider into interaction
+        sites (np.array): The positions of the center for each molecule in the simulation cell
+        nearest_distance (list): Specific interaction distances to consider
         --------------------------------------------------------------------
         Returns:
         interaction_matrix (np.array): The interaction matrix
         dist_vecs (np.array): The distance vectors array
         """
-        positions = self.generate_lattice() # Generate lattice
-        lattice = np.dot(positions, self.lattice_vecs.T) # supercell lattice points
-    
-        N = len(lattice) # number of molecules in supercell
-    
-        dist_vecs = lattice[:, None, :] - lattice[None, :, :] # Compute all pairwise distance vectors (dist_vecs.shape = (N,N,3))
-        dist_vecs = self.dist_pbc(dist_vecs) # apply PBC 
-    
-        distances = np.linalg.norm(dist_vecs, axis=-1) # Compute Euclidean distance matrix
-
+        N = len(sites) # number of molecules in supercell
         interaction_matrix = np.zeros((N, N), dtype=int)
-        for idx, d in enumerate(self.distances, start=1):
-            interaction_matrix[np.isclose(distances, d, atol=1e-4)] = idx  # Assign type 1, 2, 3
+
+        tree = cKDTree(sites, boxsize=self.n)
+        neighbor_indices = tree.query_ball_tree(tree, 1)
+        for i, neighbors in enumerate(neighbor_indices):
+            neighbor_indices[i] = [j for j in neighbors if j != i] # remove self index
 
         for i in range(N):
-            for j in range(N):
-                if np.any(np.isclose(np.linalg.norm(lattice[i] - lattice[j]), self.translation_dist, atol=1e-4)): # Modify interactions where distance = lattice vector to a specific type (e.g., type 3)
-                    interaction_matrix[i, j] = 3
+            for j in neighbor_indices[i]:
+                dist = (sites[j] - sites[i])
+                values = self.check_neighbors(dist)
+                if values > 0:
+                    interaction_matrix[i][j] = values
+                else:
+                    interaction_matrix[i][j] = 0
 
-        # ======= Apply Group Mask to Type 1 Interactions =======
-        type1_mask = interaction_matrix == 1  # Find type 1 interactions
-    
-        # Get sign of displacement vectors
-        signs = np.sign(dist_vecs)
- 
-        #   (       *      *     *        ")
-        #   (                             ")
-        #   (   #      2#      3#         ")
-        #   (                             ")
-        #   (       *      1*    *        ")
-        #   (                             ")
-        #   (   #      #       #          ")
+        return interaction_matrix
 
-        # 1 -> 2: interaction type 1 (Distance are equal but direction are opposite)
-        # 1 -> 3: interaction type 2
-        # 2 -> 3: interaction type 3
-
-        # Define masks
-        group1_mask = (signs[..., self.plane[0]] != signs[..., self.plane[1]])  # Opposite sign: (+,-) or (-,+)
-        group2_mask = (signs[..., self.plane[0]] == signs[..., self.plane[1]])  # Same sign: (+,+) or (-,-)
-
-        # Apply masks only to type 1 interactions
-        interaction_matrix[type1_mask & group1_mask] = 1  # Keep type 1
-        interaction_matrix[type1_mask & group2_mask] = 2  # Reassign to type 2
-
-        return dist_vecs, interaction_matrix
-
-    def hamiltonian(self):
+    def hamiltonian(self, sites):
         """ Define the tight-binding Hamiltonian matrix for the charge carrier.
         H = H_el + H_ph + H_elph
         in original TLT: H_ph = 0, H_ii = 0; but we can add H_ii and H_elph,l
@@ -160,13 +116,12 @@ class Mobility():
         Return:
         H: Hamiltonian matrix
         """
-        _, interaction_matrix = self.interactions()
+        interaction_matrix = self.interaction(sites)
         Hij_matrix = np.copy(interaction_matrix).astype(float) # Transfer integral matrix (J_ij)
         sigmaij_matrix = np.copy(interaction_matrix).astype(float) # Dynamic disorder matrix (in TLT, we treat this as static disorder)
 
-        # Onsite energy matrix (H_ii)
-        Hii_matrix = np.diag([self.j_ii]*interaction_matrix.shape[0])
-        sigmaii_matrix = np.diag([self.sigma_ii]*interaction_matrix.shape[0]) # Dynamic disorder matrix (in TLT, we treat this as static disorder)
+        # Diagonal (H_ii)
+        diag_eng = np.random.normal(loc=0, scale=self.sigma_ii, size=len(sites))
 
         # Inter-molecular transfer integral matrix (H_ij)
         j1 = self.j_ij[0]
@@ -189,11 +144,12 @@ class Mobility():
         gaussian_matrix = np.random.normal(0, 1, size=interaction_matrix.shape)
         gaussian_matrix = np.tril(gaussian_matrix) + np.tril(gaussian_matrix, -1).T
     
-        H = Hii_matrix + Hij_matrix + sigmaij_matrix * gaussian_matrix
+        H = Hij_matrix + sigmaij_matrix * gaussian_matrix
+        np.fill_diagonal(H, diag_eng)
 
         return H
 
-    def localization(self):
+    def localization(self, sites):
         """
         Calculate the localization length of the charge carrier.
         Args:
@@ -206,16 +162,16 @@ class Mobility():
         lx2 (float): The localization length in x direction
         ly2 (float): The localization length in y direction
         """
-        positions = self.generate_lattice()
         factor = -1
         if not self.is_hole: # If hole transport, it will transport at the top edge of the valence band, Boltzmann factor will be positive
             factor = 1
 
-        beta = 1 / (k * jtoev * self.temp) # Boltzmann factor 
-        h_ij = self.hamiltonian() # Create Hamiltonian matrix
+        beta = 1 / (kb * self.temp) # Boltzmann factor 
+        h_ij = self.hamiltonian(sites) # Create Hamiltonian matrix
         energies, eigenvecs = np.linalg.eigh(h_ij) # Solve eigenvalues & eigenvectors
-        operx = np.diag(positions[:,self.plane[0]])
-        opery = np.diag(positions[:,self.plane[1]])
+        sites = sites @ self.lattice.T # Back to Cartesian 
+        operx = np.diag(sites[:,0])
+        opery = np.diag(sites[:,1])
         weights = np.exp(-factor * energies * beta)
         partition = np.sum(weights)
     
@@ -240,16 +196,15 @@ class Mobility():
 
         return lx2, ly2
 
-    def avg_localization(self):
+    def avg_localization(self, sites):
         """ 
         Perform average of the localization length calculation.
         Args:
         positions (np.array): The positions of the atoms in the simulation cell
-        lattice_vectors (np.array): Unit cell lattice vectors
+        lattice (np.array): Unit cell lattice vectors
         distances (list): Specific interaction distances to consider
         j_ij (list): Inter-molecular transfer integral (J_a, J_b, J_c)
         sigma (list): dynamic disorder (sigma_a, sigma_b, sigma_c)
-        translation_dist (float): One of the lattice parameter will be consider into interaction
         inverse_htau (float): Inverse of the scattering time (hbar/tau) units in eV (Defaults to 5e-3)
         temp (float): Temperature in Kelvin (Defaults to 300)
         -----------------------------------------------------------------
@@ -260,7 +215,7 @@ class Mobility():
         avglx2_list = []
         avgly2_list = []
         for n in range(self.realizations):
-            lx2, ly2 = self.localization() # Calculation lx^2 and ly^2 
+            lx2, ly2 = self.localization(sites) # Calculation lx^2 and ly^2 
             avglx2_list.append(lx2)
             avgly2_list.append(ly2)
 
@@ -273,7 +228,7 @@ class Mobility():
         """
         TLT mobility calculation.
         Args:
-        avg_lx2 (float): The average localization length in x direction
+        avg_lx2 (float): The average localization length in x direction in Angstrom
         avg_ly2 (float): The average localization length in y direction
         inverse_htau (float): Inverse of the scattering time (hbar/tau) units in eV
         temp (float): Temperature in Kelvin
@@ -283,11 +238,163 @@ class Mobility():
         mobilityy
         mobility_average
         """
-        avglx2, avgly2 = self.avg_localization()
-        tau = hbar * jtoev / self.inverse_htau # unit: second
-        mobilityx = 1e-16 * e * avglx2 / (2 * tau * k * self.temp) # Unit is cm^2/Vs
-        mobilityy = 1e-16 * e * avgly2 / (2 * tau * k * self.temp)
-        mobility_average = 1e-16 * e * 0.5 * (avglx2 + avgly2) / (2 * tau * k * self.temp)
+        sites = self.generate_lattice()
+        avglx2, avgly2 = self.avg_localization(sites)
+        tau = hbar / self.inverse_htau # unit: second
+        mobilityx = 1e-16 * e * avglx2 / (2 * tau * kb * self.temp) # Unit is cm^2/Vs
+        mobilityy = 1e-16 * e * avgly2 / (2 * tau * kb * self.temp)
+        mobility_average = (mobilityx + mobilityy) / 2
 
         return avglx2, avgly2, mobilityx, mobilityy, mobility_average
+    
+    def check_neighbors(self, dist):
+        """ Check the type for each neighbors, it is for assign trnasfer integral J value
+        #       #       #
+    
+            *      2*     *        
+                                   
+        #      1#      3#         
+                                   
+            *       *    *     
+        Return values:
+        1 -> 2: values = 1
+        1 -> 3: values = 2
+        2 -> 3: values = 3
+        """
+        #if np.allclose(np.abs(dist),nearest_vecs[0], atol=1e-5):    
+        if np.abs(dist[0]) > 1 or np.abs(dist[1]) > 1:
+            dist -= np.round(dist) # sometimes PBC can make dist really large
 
+        if np.allclose(np.abs(dist), self.nearest_vecs[0], atol=1e-5):
+            if dist[0] * dist[1] > 0:
+                return 1
+            else:
+                return 3
+
+        if np.allclose(np.abs(dist), self.nearest_vecs[1], atol=1e-5):
+            return 2
+
+        else: 
+            return 0
+        
+    def marcus(self, J, deltaE=0):
+        """ Calulate hopping rate using Marcus theory 
+        Args:
+        J (float): Transfer integral list for nearest neighbors in eV
+        Lambda (float): Reorgnization energy in eV
+        T (float): temperature in K
+        deltaE: Energy differnece between 2 sites (if same type, 0)
+        ------------------
+        Return:
+        k_ij: Marcus theory rate 
+        """
+        k_ij = (J**2) * (2*np.pi/hbar)* np.sqrt(1/(4*np.pi*self.Lambda*kb*self.temp)) * np.exp(-(deltaE+self.Lambda)**2 / (4*kb*self.temp))
+    
+        return round(k_ij,5)
+    
+    def runKMC(self, site):
+        """ Run kinetic Monte Carlo simulate charge transport in OSCs
+        Args:
+        site: np.array with center of mass of molecules in the unitcell for 2D plane
+        Lambda: reorgnization energy in eV
+        J_list: Transfer integral list in eV
+        n: 2D supercell size
+        r: cutoff radius for nearest neighbors (fractional length)
+        T (float): temperature in K
+        MCS: Maximum number of Monte Carlo
+        ---------------------------------------------------
+        Return
+        traj: trajectory
+        time: in ps
+        """  
+        sites = self.generate_lattice(site, self.n, self.n)
+        tree = cKDTree(sites, boxsize=self.n)
+        neighbor_indices = tree.query_ball_tree(tree, self.r)
+        for i, neighbors in enumerate(neighbor_indices):
+            neighbor_indices[i] = [j for j in neighbors if j != i] # remove self index
+    
+        t = 0 # time starts at 0
+        time = [t]
+        total_sites = len(sites)
+
+        random_idx = np.random.randint(0, total_sites)
+        init_pos = sites[random_idx]
+        traj = [tuple(init_pos)]
+    
+        idx = random_idx
+        pos = init_pos.copy()
+    
+        mcs = 0 # Monte Carlo simulation step number
+        while mcs < self.realizations:
+            if mcs % 1000 == 0:
+                print(f'------------- Current Step is {mcs} ----------------')
+            k_list = []
+            for i in neighbor_indices[idx]:
+                dist = (sites[i] - sites[idx])
+                values = self.check_neighbors(dist, self.nearest_vecs)
+                if values == 1:
+                    J = self.j_ij[0]
+                elif values == 2:
+                    J = self.j_ij[1]
+                elif values == 3:
+                    J = self.j_ij[2]
+                else: 
+                    J = 0
+                k_ij = self.marcus(J) # calculate rate constant
+                k_list.append(k_ij)
+                
+            sum_k = np.sum(k_list)
+            probs = np.array(k_list) / sum_k # probability array
+            cumsum_probs = np.cumsum(probs) # cumulative probability 
+        
+            r1 = np.random.uniform(0, 1)
+        
+            for j, prob in enumerate(cumsum_probs):
+                if r1 < prob:
+                    nidx = neighbor_indices[idx][j]
+                    break
+                
+            pos = sites[nidx]
+            traj.append(tuple(pos))
+            r2 = np.random.uniform(0, 1)
+            dt = -np.log(r2) / sum_k
+            idx = nidx
+            t += dt
+            mcs += 1
+            time.append(round(t*1e12,3))
+
+        return traj, time
+    
+    def msd(self, traj):
+        """ Get mean square displacement 
+        Args:
+        lattice (array): lattice vectors in 2D
+        traj: trajectory from kmc
+        --------------------------------
+        Return:
+        msd_vals: Mean square displacement array 
+        """
+        N = len(traj)
+        msd_vals = np.zeros(N)
+
+        traj_cartesian = np.array(traj) @ np.array(self.lattice).T # convert to cartesian
+
+        for tau in range(N):
+            displacements = traj_cartesian[tau:] - traj_cartesian[:N-tau]
+            squared_displacements = np.sum(displacements**2, axis=1)
+            msd_vals[tau] = np.mean(squared_displacements)
+
+        return msd_vals
+    
+    def einstein_mobility(self, D):
+        """ Calculate mobility using Einstein relation
+        mu = eD / kT
+        Args:
+        D (float): Diffusion constant in cm^2/s
+        ---------------------------------------------------------------
+        Return: 
+        mobility (float): Mobility in cm^2/Vs
+        """ 
+        mobility = 1e16 * e * D / (kb*self.temp) # cm^2/Vs
+    
+        return mobility
