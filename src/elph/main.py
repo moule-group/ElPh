@@ -25,7 +25,7 @@ def main():
             run_j0(args.basis, args.functional, args.supercell) # Run Gaussian with optimization 
             run_lambda(args.basis, args.functional)
             run_disp_j(args.basis, args.functional) # Create displaced dimers and calculate J_ij of dimers.
-            run_matrix(args.mesh, args.supercell) # Calculate electron phonon coupling matrix (including local and non-local part)
+            run_matrix(args.mesh) # Calculate electron phonon coupling matrix (including local and non-local part)
             ut.print_end()
 
         if args.workflow == 2: # Run the workflow 2 (need to finish workflow 1 first)
