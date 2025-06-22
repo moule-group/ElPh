@@ -20,9 +20,9 @@ from itertools import combinations
 from scipy.spatial.distance import pdist, squareform
 from ase.calculators.gaussian import Gaussian, GaussianOptimizer
 from ase.neighborlist import natural_cutoffs, neighbor_list, NeighborList
-from scipy import sparse 
-from scipy.constants import h, k
-from collections import OrderedDict, defaultdict
+from scipy import sparse   
+
+cm_1toev = 1.23984193e-4
 
 def getGeometry(path):
     """ Using glob function in python to find the structure
@@ -55,7 +55,6 @@ def phonon(natoms, mesh):
     """
     if os.path.exists("FORCE_SETS"):
         print(" FORCE_SETS already exists, continue calculation! ")
-        force_sets = "./FORCE_SETS"
     
     else:
         ut.print_error(" FORCE_SETS file is missing ")
@@ -81,6 +80,7 @@ def phonon(natoms, mesh):
     mod = mod[index]
 
     np.savetxt("frequencies.txt", freq, header="Phonon frequencies (THz)") # save frequencies to txt file
+    np.savez_compressed('phonon.npz', mod=mod, freq=freq, nqpts=nqpts) # save modulation and frequencies to npz file
     print(" Finish Modulation using Phonopy ")
     
     return mod, freq, nqpts
@@ -149,10 +149,12 @@ def neighbor(atoms_unitcell, supercell_array, nmols=3):
         
         attempt += 1
         ut.print_error("No molecules matched the expected atom count of {natoms_in_cell / nmol_in_cell}. Increase the cutoff distance and try again.")
-        cutoff_h = [np.float64(x+0.02*attempt) if x == 0.31 else x for x in natural_cutoffs(atoms)] # increase Hydrogen cutoff
-        cutoff_c = [np.float64(x+0.01*attempt) if x == 0.76 else x for x in cutoff_h] # increase Carbon cutoff
-        cutoff_n = [np.float64(x+0.01*attempt) if x == 0.71 else x for x in cutoff_c] # increase Nitrogen cutoff
-        cutoff = [np.float64(x+0.01*attempt) if x == 1.05 else x for x in cutoff_n] # increase Sulfur cutoff
+        cutoff_h = [np.float64(x+0.03*attempt) if x == 0.31 else x for x in natural_cutoffs(atoms)] # increase Hydrogen cutoff
+        cutoff_c = [np.float64(x+0.03*attempt) if x == 0.76 else x for x in cutoff_h] # increase Carbon cutoff
+        cutoff_n = [np.float64(x+0.03*attempt) if x == 0.71 else x for x in cutoff_c] # increase Nitrogen cutoff
+        cutoff_s = [np.float64(x+0.03*attempt) if x == 1.05 else x for x in cutoff_n] # increase Sulfur cutoff
+        cutoff_si = [np.float64(x+0.03*attempt) if x == 1.11 else x for x in cutoff_s] # increase silicon cutoff
+        cutoff = [np.float64(x+0.03*attempt) if x == 0.57 else x for x in cutoff_si] # increase flourine cutoff
 
     if not full_mols:
         ut.print_error("Failed to find any full molecules after all retries. Exiting.")
@@ -328,7 +330,7 @@ def gaussian_opt(atoms, bset, label, functional, ncharge=0):
     ncharged (int): Charge of the system (0: neutral, 1: hole transport, -1: electron transport)
     -----------------------------------------------
     """
-    opt_cmd = Gaussian(mem='16GB',
+    opt_cmd = Gaussian(mem='18GB',
                        chk=f'{label}.chk',
                        nprocshared=12,
                        label=label,
@@ -353,7 +355,7 @@ def hr_factor(bset, functional):
     ------------------------------------------------
     """
     with open('hr_cation.com', 'w') as f1: # This is from neutral to cation
-        cmds = ["%mem=16GB\n",
+        cmds = ["%mem=18GB\n",
                 "%oldchk=cation.chk\n",
                 "%chk=fc.chk\n",
                 f"#P {functional[0]}/{bset[0]} EmpiricalDispersion=GD3BJ Geom=AllCheck Freq=(READFC,FC,ReadFCHT)\n",
@@ -369,7 +371,7 @@ def hr_factor(bset, functional):
         f1.writelines(cmds)
 
     with open('hr_neutral.com', 'w') as f2: # This is from cation to neutral 
-        cmds = ["%mem=16GB\n",
+        cmds = ["%mem=18GB\n",
                 "%oldchk=neutral.chk\n",
                 "%chk=fc.chk\n",
                 f"#P {functional[0]}/{bset[0]} EmpiricalDispersion=GD3BJ Geom=AllCheck Freq=(READFC,FC,ReadFCHT)\n",
@@ -409,9 +411,7 @@ def parse_log(logfile1, logfile2):
     vibdisp_cart = data.vibdisps
     vibdisp_cart_squared = vibdisp_cart**2
     vibdisp_squared = np.sum(vibdisp_cart_squared, axis=1)
-
-    jtoev = 6.241509074460763e+18 
-    cm_1tohz = 3e10   
+ 
     huangrhys = []  
     gii_squared = []
     
@@ -428,12 +428,12 @@ def parse_log(logfile1, logfile2):
                 huangrhys.append(float(hr)) # unitless         
 
         # lambda_i = hbar * w_i * S (S is Huang Rhys factor)
-        reorg_eng = freqs * cm_1tohz * h * jtoev * huangrhys # Unit here should be eV
+        reorg_eng = freqs * cm_1toev * huangrhys # Unit here should be eV
 
     # lambda_i = g_ii^2 / (hbar*w_i)
     gii_squared_cart = np.zeros((len(freqs), 3))
     for i in range(len(freqs)):
-        gii_2 = reorg_eng[i] * h * jtoev * freqs[i] * cm_1tohz
+        gii_2 = reorg_eng[i] * freqs[i] * cm_1toev
         gii_squared.append(gii_2)
         denominator = np.sum(vibdisp_squared[i])
         gii_squared_x = gii_2 * vibdisp_squared[i][0] / denominator
@@ -461,12 +461,12 @@ def mol_orbital(bset, functional, atoms=None):
     
     pun_files = glob.glob('*.pun')
     if not pun_files: # If there is no Gaussian output, it will run Gaussian
-        atoms.calc = Gaussian(mem='16GB',
+        atoms.calc = Gaussian(mem='18GB',
                               nprocshared=12,
                               label='mo',
                               save=None,
                               method=functional[1],
-                              basis=bset[1], # can use 6-31G* 
+                              basis=bset[1],  
                               scf='tight',
                               pop='full',
                               extra='nosymm punch=mo EmpiricalDispersion=GD3BJ iop(3/33=1)') # iop(3/33=1) output one-electron integrals to log file.
@@ -534,17 +534,17 @@ def variance(freqs, g2, nqpts, temp, unit='THz'):
     var (array): variance of the transfer integral J
     sigma (float): standard deviation of the transfer integral J (eV)
     """ 
-    cm_1tohz = 3e10 
-    thztohz = 1e12 
+    kb = 8.6173e-5 # eV K-1 
+    thztoev = 4.13566733e-3 # THz to eV
     if unit == 'THz':
-        boseein = 1 / np.tanh((h*freqs*thztohz)/(2*k*temp)) # Bose-Einstein distribution
+        boseein = 1 / np.tanh((freqs*thztoev)/(2*kb*temp)) # Bose-Einstein distribution
         variance = (g2/2) * boseein / nqpts # freqs in Phonopy is THz, so need to convert to Hz
-        sigma = np.sum(variance)**0.5 # Square root of variance, have to do normalization over the number of q points 
+        sigma = np.sqrt(np.sum(variance)) # Square root of variance, have to do normalization over the number of q points 
 
     if unit == 'cm-1':
-        boseein = 1 / np.tanh((h*freqs*cm_1tohz)/(2*k*temp))
+        boseein = 1 / np.tanh((freqs*cm_1toev)/(2*kb*temp))
         variance = (g2/2) * boseein / nqpts # freqs in Phonopy is THz, so need to convert to Hz
-        sigma = np.sum(variance)**0.5 # Square root of variance, have to do normalization over the number of q points 
+        sigma = np.sqrt(np.sum(variance)) # Square root of variance, have to do normalization over the number of q points 
 
     return variance, sigma
 
