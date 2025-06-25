@@ -148,6 +148,19 @@ class Mobility():
         np.fill_diagonal(H, diag_eng)
 
         return H
+    
+    def ipr(self, eigenvecs):
+        """ Calculate the Inverse Participation Ratio (IPR) of the charge carrier.
+        The IPR is a measure of the localization of the wavefunction.
+        Args:
+        eigenvecs (np.array): The eigenvectors of the Hamiltonian matrix
+        ----------------------------------------------
+        Return:
+        ipr (float): The Inverse Participation Ratio
+        """
+        ipr = 1.0 / np.sum(np.abs(eigenvecs[0])**4, axis=0)
+
+        return ipr
 
     def localization(self, sites):
         """
@@ -161,6 +174,7 @@ class Mobility():
         Return:
         lx2 (float): The localization length in x direction
         ly2 (float): The localization length in y direction
+        eigenvecs (np.array): The eigenvectors of the Hamiltonian matrix for IPR
         """
         factor = -1
         if not self.is_hole: # If hole transport, it will transport at the top edge of the valence band, Boltzmann factor will be positive
@@ -187,6 +201,8 @@ class Mobility():
 
         lx2 /= partition
         ly2 /= partition
+
+        # Deal with IPR, where equation is 
         
         #operatorx = np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[0]] * h_ij, eigenvecs))
         #operatorx -= np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[0]] * h_ij, eigenvecs)).T
@@ -194,7 +210,7 @@ class Mobility():
         #operatory = np.matmul(eigenvecs.T, np.matmul( dist_vecs[:,:,self.plane[1]]* h_ij, eigenvecs))
         #operatory -= np.matmul(eigenvecs.T, np.matmul(dist_vecs[:,:,self.plane[1]] * h_ij, eigenvecs)).T
 
-        return lx2, ly2
+        return lx2, ly2, eigenvecs
 
     def avg_localization(self, sites):
         """ 
@@ -214,15 +230,19 @@ class Mobility():
         """
         avglx2_list = []
         avgly2_list = []
+        ipr_list = []
         for n in range(self.realizations):
-            lx2, ly2 = self.localization(sites) # Calculation lx^2 and ly^2 
+            lx2, ly2, eigenvecs = self.localization(sites) # Calculation lx^2 and ly^2 
+            ipr = self.ipr(eigenvecs) # Calculate IPR
+            ipr_list.append(ipr)
             avglx2_list.append(lx2)
             avgly2_list.append(ly2)
 
         avglx2 = sum(avglx2_list) / self.realizations
         avgly2 = sum(avgly2_list) / self.realizations
-    
-        return avglx2, avgly2
+        avgIPR = sum(ipr_list) / self.realizations
+
+        return avglx2, avgly2, avgIPR
 
     def tlt_mobility(self):
         """
@@ -239,13 +259,13 @@ class Mobility():
         mobility_average
         """
         sites = self.generate_lattice()
-        avglx2, avgly2 = self.avg_localization(sites)
+        avglx2, avgly2, avgIPR = self.avg_localization(sites)
         tau = hbar / self.inverse_htau # unit: second
         mobilityx = 1e-16 * e * avglx2 / (2 * tau * kb * self.temp) # Unit is cm^2/Vs
         mobilityy = 1e-16 * e * avgly2 / (2 * tau * kb * self.temp)
         mobility_average = (mobilityx + mobilityy) / 2
 
-        return avglx2, avgly2, mobilityx, mobilityy, mobility_average
+        return avglx2, avgly2, avgIPR, mobilityx, mobilityy, mobility_average
     
     def check_neighbors(self, dist):
         """ Check the type for each neighbors, it is for assign trnasfer integral J value
@@ -290,9 +310,9 @@ class Mobility():
         """
         k_ij = (J**2) * (2*np.pi/hbar)* np.sqrt(1/(4*np.pi*self.Lambda*kb*self.temp)) * np.exp(-(deltaE+self.Lambda)**2 / (4*kb*self.temp))
     
-        return round(k_ij,5)
+        return round(k_ij, 5)
     
-    def runKMC(self, site):
+    def runKMC(self):
         """ Run kinetic Monte Carlo simulate charge transport in OSCs
         Args:
         site: np.array with center of mass of molecules in the unitcell for 2D plane
@@ -307,7 +327,7 @@ class Mobility():
         traj: trajectory
         time: in ps
         """  
-        sites = self.generate_lattice(site, self.n, self.n)
+        sites = self.generate_lattice()
         tree = cKDTree(sites, boxsize=self.n)
         neighbor_indices = tree.query_ball_tree(tree, self.r)
         for i, neighbors in enumerate(neighbor_indices):
@@ -331,7 +351,7 @@ class Mobility():
             k_list = []
             for i in neighbor_indices[idx]:
                 dist = (sites[i] - sites[idx])
-                values = self.check_neighbors(dist, self.nearest_vecs)
+                values = self.check_neighbors(dist)
                 if values == 1:
                     J = self.j_ij[0]
                 elif values == 2:
@@ -366,7 +386,7 @@ class Mobility():
         return traj, time
     
     def msd(self, traj):
-        """ Get mean square displacement 
+        """ Get mean square displacement <r(t)^2> = <(r(t) - r(0))^2>
         Args:
         lattice (array): lattice vectors in 2D
         traj: trajectory from kmc
@@ -377,12 +397,12 @@ class Mobility():
         N = len(traj)
         msd_vals = np.zeros(N)
 
-        traj_cartesian = np.array(traj) @ np.array(self.lattice).T # convert to cartesian
+        traj_cart = np.array(traj) @ np.array(self.lattice).T # convert to cartesian
 
         for tau in range(N):
-            displacements = traj_cartesian[tau:] - traj_cartesian[:N-tau]
-            squared_displacements = np.sum(displacements**2, axis=1)
-            msd_vals[tau] = np.mean(squared_displacements)
+            disp = traj_cart[tau] - traj_cart[0] # displacement from initial position
+            squared_disp = np.sum(disp**2)
+            msd_vals[tau] = squared_disp
 
         return msd_vals
     
@@ -390,7 +410,7 @@ class Mobility():
         """ Calculate mobility using Einstein relation
         mu = eD / kT
         Args:
-        D (float): Diffusion constant in cm^2/s
+        D (float): Diffusion constant in cm^2/s, obtained by linregression of MSD
         ---------------------------------------------------------------
         Return: 
         mobility (float): Mobility in cm^2/Vs
