@@ -112,6 +112,7 @@ def neighbor(atoms_unitcell, supercell_array, nmols=3):
     atoms : ASE atoms object with supercell
     full_mols: list of full molecules with atomic indices 
     nearest_idx: list of indices of the nearest neighbors
+    coms_array: array of center of mass for each full molecule
     """
     natoms_in_cell = len(atoms_unitcell) # number of atoms in the unit cell
     nmol_in_cell = mol_in_cell(atoms_unitcell) # number of molecules in the unit cell
@@ -179,7 +180,7 @@ def neighbor(atoms_unitcell, supercell_array, nmols=3):
 
     np.savez_compressed('center_of_mass', coms_array[nearest_idx,:]) 
 
-    return atoms, full_mols, nearest_idx
+    return atoms, full_mols, nearest_idx, coms_array
 
 def map_to_middle(coordinates, cell):
     """ Map the coordinates to the middle of the unit cell
@@ -236,7 +237,7 @@ def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3):
     atoms_unitcell = ase.io.read(structure_path) # Load structure
     cell = atoms_unitcell.get_cell() # Get cell vectors of the unit cell
     unitcell = atoms_unitcell.get_scaled_positions() # Get scaled positions of the atoms in the unit cell
-    atoms, full_mols, nearest_idx = neighbor(atoms_unitcell, supercell_array) 
+    atoms, full_mols, nearest_idx, _ = neighbor(atoms_unitcell, supercell_array) 
 
     allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
                                     list(full_mols[nearest_idx[1]]),list(full_mols[nearest_idx[2]])))
