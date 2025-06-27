@@ -24,7 +24,7 @@ class Mobility():
     realizations (int): Number of realizations for average calculation (Defaults to 250)
     mob_file (str): The json file containing the mobility parameters (Defaults to "mobility.json")
     """
-    def __init__(self, site=None, n=None, r=1, lattice=None, nearest_vecs=None, Lambda=0.0, j_ij=None, sigma_ii=0.0, sigma_ij=None, temp=298.0, inverse_htau=5e-3, is_hole=True, realizations=250, 
+    def __init__(self, site=None, n=None, r=1, lattice=None, nearest_vecs=None, Lambda=0.0, Epsilon=0.0, j_ij=None, sigma_ii=0.0, sigma_ij=None, temp=298.0, inverse_htau=5e-3, is_hole=True, realizations=250, 
                  mob_file="mobility.json"):
         
         if mob_file:
@@ -37,6 +37,7 @@ class Mobility():
             self.lattice = np.array(config.get("lattice", lattice))
             self.nearest_vecs = config.get("nearest_vecs", nearest_vecs)
             self.Lambda = config.get("Lambda", Lambda)
+            self.Epsilon = config.get("Epsilon", Epsilon)
             self.j_ij = config.get("j_ij", j_ij)
             self.sigma_ii = config.get("sigma_ii", sigma_ii)
             self.sigma_ij = config.get("sigma_ij", sigma_ij)
@@ -52,6 +53,7 @@ class Mobility():
             self.lattice = np.array(lattice)
             self.nearest_vecs = np.array(nearest_vecs)
             self.Lambda = Lambda
+            self.Epsilon = Epsilon
             self.j_ij = j_ij
             self.sigma_ii = sigma_ii
             self.sigma_ij = sigma_ij
@@ -121,7 +123,7 @@ class Mobility():
         sigmaij_matrix = np.copy(interaction_matrix).astype(float) # Dynamic disorder matrix (in TLT, we treat this as static disorder)
 
         # Diagonal (H_ii)
-        diag_eng = np.random.normal(loc=0, scale=self.sigma_ii, size=len(sites))
+        diag_eng = np.random.normal(loc=self.Epsilon, scale=self.sigma_ii, size=len(sites))
 
         # Inter-molecular transfer integral matrix (H_ij)
         j1 = self.j_ij[0]
@@ -337,30 +339,35 @@ class Mobility():
         time = [t]
         total_sites = len(sites)
 
-        random_idx = np.random.randint(0, total_sites)
-        init_pos = sites[random_idx]
+        center = np.array([self.n / 2.0] * sites.shape[1]) # Center of the supercell
+        _, idx_center = tree.query(center)
+        init_pos = sites[idx_center] # Start at the center of the supercell 
         traj = [tuple(init_pos)]
     
-        idx = random_idx
+        idx = idx_center
         pos = init_pos.copy()
     
         mcs = 0 # Monte Carlo simulation step number
         while mcs < self.realizations:
-            if mcs % 1000 == 0:
-                print(f'------------- Current Step is {mcs} ----------------')
             k_list = []
+            eng_idx = np.random.normal(self.Epsilon, self.sigma_ii) # Site energy at current site
             for i in neighbor_indices[idx]:
                 dist = (sites[i] - sites[idx])
+                eng_i = np.random.normal(self.Epsilon, self.sigma_ii) # Site energy at future site i
                 values = self.check_neighbors(dist)
                 if values == 1:
                     J = self.j_ij[0]
+                    J += np.random.normal(0, self.sigma_ij[0]) # add dynamic disorder
                 elif values == 2:
                     J = self.j_ij[1]
+                    J += np.random.normal(0, self.sigma_ij[1])
                 elif values == 3:
                     J = self.j_ij[2]
+                    J += np.random.normal(0, self.sigma_ij[2])
                 else: 
                     J = 0
-                k_ij = self.marcus(J) # calculate rate constant
+                deltaE = eng_i - eng_idx # Energy difference between two sites
+                k_ij = self.marcus(J, deltaE) # calculate rate constant
                 k_list.append(k_ij)
                 
             sum_k = np.sum(k_list)
@@ -381,7 +388,7 @@ class Mobility():
             idx = nidx
             t += dt
             mcs += 1
-            time.append(round(t*1e12,3))
+            time.append(t*1e12) # ps
 
         return traj, time
     
@@ -415,6 +422,6 @@ class Mobility():
         Return: 
         mobility (float): Mobility in cm^2/Vs
         """ 
-        mobility = 1e16 * e * D / (kb*self.temp) # cm^2/Vs
+        mobility = 1e-16 * e * D / (kb*self.temp) # cm^2/Vs
     
         return mobility

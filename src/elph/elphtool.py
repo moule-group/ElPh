@@ -6,7 +6,6 @@
 
 import ase.io
 import cclib
-import json
 import glob
 import os
 import numpy as np
@@ -23,6 +22,8 @@ from ase.neighborlist import natural_cutoffs, neighbor_list, NeighborList
 from scipy import sparse   
 
 cm_1toev = 1.23984193e-4
+kb = 8.6173e-5 # eV K-1 
+thztoev = 4.13566733e-3 # THz to eV
 
 def getGeometry(path):
     """ Using glob function in python to find the structure
@@ -535,8 +536,6 @@ def variance(freqs, g2, nqpts, temp, unit='THz'):
     var (array): variance of the transfer integral J
     sigma (float): standard deviation of the transfer integral J (eV)
     """ 
-    kb = 8.6173e-5 # eV K-1 
-    thztoev = 4.13566733e-3 # THz to eV
     if unit == 'THz':
         boseein = 1 / np.tanh((freqs*thztoev)/(2*kb*temp)) # Bose-Einstein distribution
         variance = (g2/2) * boseein / nqpts # freqs in Phonopy is THz, so need to convert to Hz
