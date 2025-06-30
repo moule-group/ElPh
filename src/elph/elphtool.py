@@ -20,6 +20,8 @@ from scipy.spatial.distance import pdist, squareform
 from ase.calculators.gaussian import Gaussian, GaussianOptimizer
 from ase.neighborlist import natural_cutoffs, neighbor_list, NeighborList
 from scipy import sparse   
+import re
+from pathlib import Path
 
 cm_1toev = 1.23984193e-4
 kb = 8.6173e-5 # eV K-1 
@@ -392,58 +394,213 @@ def hr_factor(bset, functional):
     subprocess.run('g16 < hr_neutral.com > hr_neutral.log', shell=True)
 
 def parse_log(logfile1, logfile2):
-    """ Parse the Gaussian log file to get (1) onsite energy (2) frequencies (3) Huang-Rhys factors
-    (4) reorganization energy (5) local EPC
-    Args:
-    logfile1 (str): Path to the Gaussian log file (for cclib)
-    logfile2 (str): Path to the Gaussian log file (for bottom part)
-    -------------------------------------------
-    Returns:
-    eng (float): Onsite energy for the system (eV)
-    freq (list): Frequencies of the system (cm^-1)
-    huangrhys (list): Huang-Rhys factors for the system (unitless)
-    reorg_eng (list): Reorganization energy for the system in eV
-    gii (list): Square of local electron-phonon coupling for the system in (eV^2)
     """
-    data = cclib.io.ccread(logfile1)
-    moenergy = data.moenergies[0]
-    homo_index = data.homos 
-    eng = moenergy[homo_index]
-    freqs = data.vibfreqs # units: cm^-1
-    vibdisp_cart = data.vibdisps
-    vibdisp_cart_squared = vibdisp_cart**2
-    vibdisp_squared = np.sum(vibdisp_cart_squared, axis=1)
- 
-    huangrhys = []  
-    gii_squared = []
+    Parse Gaussian log files to extract electron-phonon coupling parameters.
     
-    with open(logfile2) as log:
+    Args:
+        logfile1 (str): Path to main Gaussian log file (for cclib parsing)
+        logfile2 (str): Path to Huang-Rhys log file (for manual parsing)
     
-        for l in log.readlines():
-            L = l.split()
+    Returns:
+        tuple: (eng, freqs, huangrhys, reorg_eng, gii_squared, gii_squared_cart)
+            - eng (float): HOMO/LUMO energy (eV)
+            - freqs (np.ndarray): Vibrational frequencies (cm^-1)
+            - huangrhys (np.ndarray): Huang-Rhys factors (unitless)
+            - reorg_eng (np.ndarray): Reorganization energies (eV)
+            - gii_squared (np.ndarray): Local electron-phonon coupling squared (eV^2)
+            - gii_squared_cart (np.ndarray): Cartesian components of g² (eV^2)
     
-            if len(L)==6 and L[0]=='Mode' and L[1]=='num.' and L[3]=='-' and L[4]=='Factor:':
-                hr=L[5]
-                str1=hr[0:8]
-                str2=hr[-3:]
-                hr=str1+'E'+str2
-                huangrhys.append(float(hr)) # unitless         
+    Raises:
+        FileNotFoundError: If log files don't exist
+        ValueError: If parsing fails or data is inconsistent
+    """
 
-        # lambda_i = hbar * w_i * S (S is Huang Rhys factor)
-        reorg_eng = freqs * cm_1toev * huangrhys # Unit here should be eV
-
-    # lambda_i = g_ii^2 / (hbar*w_i)
-    gii_squared_cart = np.zeros((len(freqs), 3))
-    for i in range(len(freqs)):
-        gii_2 = reorg_eng[i] * freqs[i] * cm_1toev
-        gii_squared.append(gii_2)
-        denominator = np.sum(vibdisp_squared[i])
-        gii_squared_x = gii_2 * vibdisp_squared[i][0] / denominator
-        gii_squared_y = gii_2 * vibdisp_squared[i][1] / denominator
-        gii_squared_z = gii_2 * vibdisp_squared[i][2] / denominator
-        gii_squared_cart[i,:] = [gii_squared_x, gii_squared_y, gii_squared_z]
-
+    # validate input files
+    for file_path in [logfile1, logfile2]:
+        if not Path(file_path).exists():
+            raise FileNotFoundError(f"Log file not found: {file_path}")
+    
+    # parse main log file using cclib module
+    try:
+        data = cclib.io.ccread(logfile1)
+        
+        # Extract molecular orbital data
+        moenergy = data.moenergies[0]
+        homo_index = data.homos
+        eng = moenergy[homo_index]
+        
+        # Extract vibrational data
+        freqs = np.array(data.vibfreqs)  # cm^-1
+        vibdisp_cart = np.array(data.vibdisps)  # Cartesian displacements
+        
+    except Exception as e:
+        raise ValueError(f"Failed to parse main log file {logfile1}: {e}")
+    
+    # Parse Huang-Rhys factors using regex
+    huangrhys = _parse_huangrhys_factors(logfile2, len(freqs))
+    
+    # Calculate reorganization energies
+    reorg_eng = _calculate_reorganization_energy(freqs, huangrhys)
+    
+    # Calculate electron-phonon coupling
+    gii_squared, gii_squared_cart = _calculate_electron_phonon_coupling(
+        freqs, reorg_eng, vibdisp_cart
+    )
+    
     return eng, freqs, huangrhys, reorg_eng, gii_squared, gii_squared_cart
+
+
+def _parse_huangrhys_factors(logfile_path, expected_count):
+    """
+    Parse Huang-Rhys factors using robust regex pattern matching.
+    
+    Args:
+        logfile_path (str): Path to Huang-Rhys log file
+        expected_count (int): Expected number of vibrational modes
+    
+    Returns:
+        np.ndarray: Huang-Rhys factors
+    
+    Raises:
+        ValueError: If parsing fails or count doesn't match
+    """
+    
+    # fixed regex pattern to capture full scientific notation including exponent
+    pattern = r'Mode\s+num\.\s+\d+\s+-\s+Factor:\s*([0-9.E+-]+[DE][+-]?\d+)'
+    
+    huangrhys = []
+    
+    try:
+        with open(logfile_path, 'r') as f:
+            for line in f:
+                match = re.search(pattern, line)
+                if match:
+                    # convert Fortran D notation to standard E notation
+                    factor_str = match.group(1).replace('D', 'E')
+                    try:
+                        huangrhys.append(float(factor_str))
+                    except ValueError as e:
+                        raise ValueError(f"Invalid Huang-Rhys factor: {factor_str}") from e
+        
+        huangrhys = np.array(huangrhys)
+        
+        # validate count
+        if len(huangrhys) != expected_count:
+            raise ValueError(
+                f"Huang-Rhys factor count mismatch: "
+                f"expected {expected_count}, got {len(huangrhys)}"
+            )
+        
+        return huangrhys
+        
+    except Exception as e:
+        raise ValueError(f"Failed to parse Huang-Rhys factors from {logfile_path}: {e}")
+
+
+def _calculate_reorganization_energy(freqs, huangrhys):
+    """
+    Calculate reorganization energy for each vibrational mode.
+    
+    Args:
+        freqs (np.ndarray): Vibrational frequencies (cm^-1)
+        huangrhys (np.ndarray): Huang-Rhys factors (unitless)
+    
+    Returns:
+        np.ndarray: Reorganization energies (eV)
+    """
+    # λ_i = h_bar*omega_i * S_i
+    # convert cm^-1 to eV
+    cm_1toev = 1.23984193e-4
+    
+    return freqs * cm_1toev * huangrhys
+
+
+def _calculate_electron_phonon_coupling(freqs, reorg_eng, vibdisp_cart):
+    """
+    Calculate local electron-phonon coupling constants.
+    
+    Args:
+        freqs (np.ndarray): Vibrational frequencies (cm^-1)
+        reorg_eng (np.ndarray): Reorganization energies (eV)
+        vibdisp_cart (np.ndarray): Cartesian vibrational displacements from cclib
+                                  Shape: (n_modes, n_atoms, 3)
+    
+    Returns:
+        tuple: (gii_squared, gii_squared_cart)
+            - gii_squared (np.ndarray): Total g^(2) for each mode (eV^2)
+            - gii_squared_cart (np.ndarray): Cartesian components of g^(2) (eV^2)
+    """
+    cm_1toev = 1.23984193e-4
+    
+    # calculate total g^(2) for each mode: lambda_i = g_ii^2 / (hbar*w_i)
+    gii_squared = reorg_eng * freqs * cm_1toev
+    
+    # calculate Cartesian components
+    # vibdisp_cart shape: (n_modes, n_atoms, 3)
+    # sum over atoms to get total displacement per mode
+    vibdisp_squared = np.sum(vibdisp_cart**2, axis=(1, 2))  # Sum over atoms and directions
+    gii_squared_cart = np.zeros((len(freqs), 3))
+    
+    for i in range(len(freqs)):
+        if vibdisp_squared[i] > 0:  # avoid division by zero
+            # sum over atoms to get total displacement in each direction
+            total_disp = np.sum(vibdisp_cart[i]**2, axis=0)  # Shape: (3,)
+            # Distribute g^2 proportionally to displacement amplitudes
+            gii_squared_cart[i, :] = (
+                gii_squared[i] * total_disp / vibdisp_squared[i]
+            )
+        else:
+            # if no displacement, distribute equally
+            gii_squared_cart[i, :] = gii_squared[i] / 3
+    
+    return gii_squared, gii_squared_cart
+
+def validate_parse_log_results(eng, freqs, huangrhys, reorg_eng, gii_squared, gii_squared_cart):
+    """
+    Validate the results of parse_log function.
+    
+    Args:
+        eng, freqs, huangrhys, reorg_eng, gii_squared, gii_squared_cart: Outputs from parse_log
+    
+    Returns:
+        bool: True if validation passes
+    
+    Raises:
+        ValueError: If validation fails
+    """
+    # checking data types and shapes
+    if not isinstance(freqs, np.ndarray) or not isinstance(huangrhys, np.ndarray):
+        raise ValueError("freqs and huangrhys must be numpy arrays")
+    
+    if len(freqs) != len(huangrhys):
+        raise ValueError("freqs and huangrhys must have same length")
+    
+    if len(freqs) != len(reorg_eng) or len(freqs) != len(gii_squared):
+        raise ValueError("All arrays must have same length")
+    
+    if gii_squared_cart.shape != (len(freqs), 3):
+        raise ValueError("gii_squared_cart must have shape (n_modes, 3)")
+    
+    # Check physical constraints
+    if np.any(freqs < 0):
+        raise ValueError("Frequencies must be positive")
+    
+    if np.any(huangrhys < 0):
+        raise ValueError("Huang-Rhys factors must be positive")
+    
+    if np.any(reorg_eng < 0):
+        raise ValueError("Reorganization energies must be positive")
+    
+    if np.any(gii_squared < 0):
+        raise ValueError("Electron-phonon coupling must be positive")
+    
+    # check consistency
+    cm_1toev = 1.23984193e-4
+    expected_gii = reorg_eng * freqs * cm_1toev
+    if not np.allclose(gii_squared, expected_gii, rtol=1e-10):
+        raise ValueError("gii_squared inconsistent with reorganization energy")
+    
+    return True
 
 def mol_orbital(bset, functional, atoms=None):
     """ Run Gaussian to compute the molecular orbitals coefficient and energy for the system (Single point calculation)
