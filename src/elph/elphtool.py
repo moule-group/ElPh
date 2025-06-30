@@ -408,7 +408,7 @@ def parse_log(logfile1, logfile2):
             - huangrhys (np.ndarray): Huang-Rhys factors (unitless)
             - reorg_eng (np.ndarray): Reorganization energies (eV)
             - gii_squared (np.ndarray): Local electron-phonon coupling squared (eV^2)
-            - gii_squared_cart (np.ndarray): Cartesian components of g² (eV^2)
+            - gii_squared_cart (np.ndarray): Cartesian components of g^2 (eV^2)
     
     Raises:
         FileNotFoundError: If log files don't exist
