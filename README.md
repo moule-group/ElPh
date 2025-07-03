@@ -31,13 +31,11 @@ For installing Catnip (ChArge TraNsfer Integral Package), please refer to https:
 
 # Usage:
 
-## Non Local Electron Phonon Coupling
+## Transfer Integral
 
 First step:  Input the number of molecules (defaults to 3) needs to be extracted, the code will generate monomer and dimer structure files.
 
-Second step: Prepare input files in the folder: CONTCAR from vasp output and/or cif file of materials; FORCE_SETS from Phonopy simulation; phonopy_disp.yaml from Phonopy simulation.
-
-Third step: Run elph to return electron phonon coupling parameter for further research.
+Second step: Prepare input files in the folder: POSCAR (VASP structure format) ; FORCE_SETS from Phonopy simulation; phonopy_disp.yaml from Phonopy simulation.
 
 Note: We consider 2D plane (high mobility plane of organic semiconductors) and only pick 3 nearest neighbors in this 2D plane. The 3 numbering monomers will be pair A (monomer 1 and 2); pair B (monomer 1 and 3); pair C (monomer 2 and 3), pair A and pair B will be transversed pairs and pair C will be parallel pairs (the shorter lattice parameter in 2D plane).
 
@@ -45,12 +43,12 @@ Note: We consider 2D plane (high mobility plane of organic semiconductors) and o
 elph -w 1
 ```
 
-## SVD Phonon Modes Projection
+Prerequisite: Finish transfer integral simulation first.
 
-Prerequisite: Finish non-local epc simulation first.
+## Electron Phonon Coupling
 
 ```
-elph -w 2 -svd 128
+elph -w 2 
 ```
 
 ## Transient Localization Theory Charge Carrier Mobility
