@@ -270,7 +270,7 @@ class Mobility():
         return avglx2, avgly2, avgIPR, mobilityx, mobilityy, mobility_average
     
     def check_neighbors(self, dist):
-        """ Check the type for each neighbors, it is for assign trnasfer integral J value
+        """ Check the type for each neighbors, it is for assign transfer integral J value
         #       #       #
     
             *      2*     *        
