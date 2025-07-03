@@ -26,7 +26,7 @@ def getGeometry(path):
     
     return file[0]
 
-def run_j0(basis, func, supercell_array, nmols=3):
+def run_j0(basis, func, supercell_array, nmols):
     """ Main function for running Gaussian and Catnip to get transfer integral J_0
     Args:
     supercell_array (tuple): The supercell matrix
@@ -55,7 +55,7 @@ def run_j0(basis, func, supercell_array, nmols=3):
             os.makedirs(os.path.join(main_path, 'j'), exist_ok=True) # Create a directory for J_ij
 
         except FileNotFoundError:
-                ut.print_error("Structure (.cif; CONTCAR ...) file not found in the current directory. Exiting.") 
+                ut.print_error("Structure (.cif; POSCAR ...) file not found in the current directory. Exiting.") 
                 sys.exit(1)  # Exit the script with an error
 
         if not xyz_file:
@@ -65,29 +65,67 @@ def run_j0(basis, func, supercell_array, nmols=3):
         if nmols == 3:
             path_list = ['./1','./2','./3','./A','./B','./C']
 
-        for path in path_list:
-            os.chdir(path)
-            ep.mol_orbital(bset=basis, functional=func) # Run Gaussian to get molecular orbitals
-            os.chdir(main_path)
+            for path in path_list:
+                os.chdir(path)
+                ep.mol_orbital(bset=basis, functional=func) # Run Gaussian to get molecular orbitals
+                os.chdir(main_path)
 
-        # Calculate J 
-        jA_eff, jA = ep.run_catnip('./1/1.pun', './2/2.pun', './A/A.pun', './1/mo.log', './2/mo.log', './A/mo.log')
-        jB_eff, jB = ep.run_catnip('./1/1.pun', './3/3.pun', './B/B.pun', './1/mo.log', './3/mo.log', './B/mo.log')
-        jC_eff, jC = ep.run_catnip('./2/2.pun', './3/3.pun', './C/C.pun', './2/mo.log', './3/mo.log', './C/mo.log')
+            # Calculate J 
+            jA_eff, jA = ep.run_catnip('./1/1.pun', './2/2.pun', './A/A.pun', './1/mo.log', './2/mo.log', './A/mo.log')
+            jB_eff, jB = ep.run_catnip('./1/1.pun', './3/3.pun', './B/B.pun', './1/mo.log', './3/mo.log', './B/mo.log')
+            jC_eff, jC = ep.run_catnip('./2/2.pun', './3/3.pun', './C/C.pun', './2/mo.log', './3/mo.log', './C/mo.log')
 
-        print(f' Done calculation on J_A = {jA_eff} eV ')
-        print(f' Done calculation on J_B = {jB_eff} eV ')
-        print(f' Done calculation on J_C = {jC_eff} eV ')
+            print(f' Done calculation on J_A = {jA_eff} eV ')
+            print(f' Done calculation on J_B = {jB_eff} eV ')
+            print(f' Done calculation on J_C = {jC_eff} eV ')
     
-        j0_eff = {'A':f'{jA_eff}', 
-                  'B':f'{jB_eff}',
-                  'C':f'{jC_eff}'
-                 }
+            j0_eff = {'A':f'{jA_eff}', 
+                      'B':f'{jB_eff}',
+                      'C':f'{jC_eff}'
+                    }
         
-        j0 = {'A':f'{jA}', 
-              'B':f'{jB}',
-              'C':f'{jC}'
-             }
+            j0 = {'A':f'{jA}', 
+                  'B':f'{jB}',
+                  'C':f'{jC}'
+                    } 
+            
+        elif nmols == 4:
+            path_list = ['./1','./2','./3','./4','./A','./B','./C','./D','./E','./F'] 
+
+            for path in path_list:
+                os.chdir(path)
+                ep.mol_orbital(bset=basis, functional=func) # Run Gaussian to get molecular orbitals
+                os.chdir(main_path) 
+
+            jA_eff, jA = ep.run_catnip('./1/1.pun', './2/2.pun', './A/A.pun', './1/mo.log', './2/mo.log', './A/mo.log')
+            jB_eff, jB = ep.run_catnip('./1/1.pun', './3/3.pun', './B/B.pun', './1/mo.log', './3/mo.log', './B/mo.log')
+            jC_eff, jC = ep.run_catnip('./1/1.pun', './4/4.pun', './C/C.pun', './2/mo.log', './3/mo.log', './C/mo.log')
+            jD_eff, jD = ep.run_catnip('./2/2.pun', './3/3.pun', './D/D.pun', './2/mo.log', './3/mo.log', './D/mo.log')
+            jE_eff, jE = ep.run_catnip('./2/2.pun', './4/4.pun', './E/E.pun', './2/mo.log', './4/mo.log', './E/mo.log')
+            jF_eff, jF = ep.run_catnip('./3/3.pun', './4/4.pun', './F/F.pun', './3/mo.log', './4/mo.log', './F/mo.log')
+
+            print(f' Done calculation on J_A = {jA_eff} eV ')
+            print(f' Done calculation on J_B = {jB_eff} eV ')
+            print(f' Done calculation on J_C = {jC_eff} eV ')
+            print(f' Done calculation on J_D = {jD_eff} eV ')
+            print(f' Done calculation on J_E = {jE_eff} eV ')
+            print(f' Done calculation on J_F = {jF_eff} eV ')
+    
+            j0_eff = {'A':f'{jA_eff}', 
+                      'B':f'{jB_eff}',
+                      'C':f'{jC_eff}',
+                      'D':f'{jD_eff}',
+                      'E':f'{jE_eff}',
+                      'F':f'{jF_eff}' 
+                    }
+        
+            j0 = {'A':f'{jA}', 
+                  'B':f'{jB}',
+                  'C':f'{jC}',
+                  'D':f'{jD}',
+                  'E':f'{jE}',
+                  'F':f'{jF}'
+                    } 
     
         with open(os.path.join(main_path, 'j', 'j0_eff.json'), 'w', encoding='utf-8') as f1:
             json.dump(j0_eff, f1, ensure_ascii=False, indent=4)
@@ -114,7 +152,6 @@ def run_lambda(basis, func):
         os.chdir(os.path.join(main_path,'local'))
 
         if not os.path.exists(os.path.join(main_path,'local','cation.log')):
-    
             ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='neutral', functional=func, ncharge=0)
             ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', functional=func, ncharge=1)
             ep.hr_factor(bset=basis, functional=func)
@@ -183,25 +220,37 @@ def run_lambda(basis, func):
         np.savez_compressed('local_epc.npz', **data) 
         os.chdir(main_path)
 
-def run_disp_j(basis, func):
+def run_disp_j(basis, func, nmols):
     """ Main function for running Gaussian and Catnip to get transfer integral J for displaced molecules and dimers
     Args:
     basis (str): Gaussian basis sets
     func (str): Gaussian functional
+    nd (int): The number of displacements (Defaults to 3)
     ------------------------------------------------------------
     Return:
     j_list (list): The transfer integral list for displaced molecules and dimers!
     """
     main_path = os.getcwd()
-    if not os.path.exists(os.path.join(main_path,'C','displacements')):
+    if not os.path.exists(os.path.join(main_path, 'C', 'displacements')):
         print(' Creating displaced molecules and dimers ... ')
-        ep.create_displacement()
+        ep.create_displacement(nmols=nmols)
         
     print(" Displacement folders are finished! ")
-    
-    path_list = ['./1/displacements','./2/displacements','./3/displacements',
-                 './A/displacements','./B/displacements','./C/displacements']
-    
+        
+    if nmols == 3:
+        path_list = ['./1/displacements','./2/displacements','./3/displacements',
+                     './A/displacements','./B/displacements','./C/displacements']
+        dimer_dict = {'A':[1,2],
+                      'B':[1,3],
+                      'C':[2,3]} # The dict for the dimer A, B, C
+        
+    elif nmols == 4:
+        path_list = ['./1/displacements','./2/displacements','./3/displacements','./4/displacements',
+                     './A/displacements','./B/displacements','./C/displacements']
+        dimer_dict = {'A':[1,2],
+                      'B':[1,3],
+                      'C':[1,4]} # The dict for the dimer A, B, C
+
     for path in path_list:
         root, dirs, files = next(os.walk(path)) # Get the directory under each displacements/ folder
         os.chdir(path)  
@@ -215,10 +264,6 @@ def run_disp_j(basis, func):
     
     if not os.path.exists(os.path.join(main_path, 'disp_j', 'C_disp_J.npz')): # Check whether it is necessary to run Catnip
         os.mkdir(os.path.join(main_path, 'disp_j')) # Create a directory for J_ij
-        
-        dimer_dict = {'A':[1,2],
-                      'B':[1,3],
-                      'C':[2,3]} # The dict for the dimer A, B, C
       
         for key, values in dimer_dict.items():
             j_list = [] # Reset j_list for each dimer
@@ -273,10 +318,8 @@ def run_matrix(mesh):
     matrix_C = ep.get_deri_Jmatrix(jlist_C)
     
     ####### Connection with Phonon modes ########
-    
     main_path = os.getcwd()
     atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
-    #nmol_in_cell = ep.mol_in_cell(atoms)
     natoms = len(atoms) # Number of atoms in the unitcell
     displacement, freqs_nl, nqpts = ep.phonon(natoms, mesh) # Run phonopy modulation to create eigendisplacements list 
     # The shape of displacement is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
@@ -354,10 +397,11 @@ def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
     print(" Running TLT mobility simulation using parameters in mobility.json ... ")
 
     mobility = Mobility(mob_file=filename)
-    avglx2, avgly2, mobilityx, mobilityy, mobility_average = mobility.tlt_mobility()
+    avglx2, avgly2, avgipr, mobilityx, mobilityy, mobility_average = mobility.tlt_mobility()
 
     mobility = {'Localization length in X': round(avglx2, 3),
                 'Localization length in Y': round(avgly2, 3),
+                'Inverse participation ratio': round(avgipr, 3),
                 'Mobility on X direction (cm^/Vs)': round(mobilityx, 3), 
                 'Mobility on Y direction (cm^/Vs)': round(mobilityy, 3),
                 'Average mobility': round(mobility_average, 3)

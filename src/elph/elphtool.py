@@ -1,8 +1,6 @@
 ################### Electron Phonon Coupling molecular semiconductors (Pentacene, Rubrene) #####################
 # Author: Ray
 # Begin date: 2024/11/14
-# 1st modified: Mapping for atoms is not correct, supercell size in phonopy modulation should match the supercell size (here is 2x2x2)
-# Cannot use .xyz file (since .xyz file gives you many atoms outside unitcell)
 
 import ase.io
 import cclib
@@ -104,7 +102,7 @@ def mol_in_cell(atoms):
     
     return nmol_in_cell
 
-def neighbor(atoms_unitcell, supercell_array, nmols=3):
+def neighbor(atoms_unitcell, supercell_array, nmols):
     """ Use ase and networkx to find the neighbors in the crystal structure and return the molecules
     Args: 
     atoms: ASE atoms object
@@ -152,7 +150,7 @@ def neighbor(atoms_unitcell, supercell_array, nmols=3):
             break
         
         attempt += 1
-        ut.print_error("No molecules matched the expected atom count of {natoms_in_cell / nmol_in_cell}. Increase the cutoff distance and try again.")
+        ut.print_error(f"No molecules matched the expected atom count of {natoms_in_cell / nmol_in_cell}. Increasing the cutoff distance and try again.")
         cutoff_h = [np.float64(x+0.03*attempt) if x == 0.31 else x for x in natural_cutoffs(atoms)] # increase Hydrogen cutoff
         cutoff_c = [np.float64(x+0.03*attempt) if x == 0.76 else x for x in cutoff_h] # increase Carbon cutoff
         cutoff_n = [np.float64(x+0.03*attempt) if x == 0.71 else x for x in cutoff_c] # increase Nitrogen cutoff
@@ -177,8 +175,12 @@ def neighbor(atoms_unitcell, supercell_array, nmols=3):
     distances_matrix_0[0] = np.inf # set the diagonal to infinity to ignore self-distance
     min_dist = np.min(distances_matrix_0)
     num_min_dist = len(np.where(distances_matrix_0 == min_dist)[0])
+
     if nmols == 3: # Some molecules may have the same distance to first molecule
         nearest_idx = np.argsort(distances_matrix_0)[num_min_dist-1:num_min_dist+1] # get the indices of the nearest neighbors
+        nearest_idx = np.insert(nearest_idx, 0, 0) # insert the first molecule (itself) at the beginning of the list
+    elif nmols == 4:
+        nearest_idx = np.argsort(distances_matrix_0)[num_min_dist-1:num_min_dist+2] # get the indices of the nearest neighbors
         nearest_idx = np.insert(nearest_idx, 0, 0) # insert the first molecule (itself) at the beginning of the list
 
     np.savez_compressed('center_of_mass', coms_array[nearest_idx,:]) 
@@ -226,7 +228,7 @@ def mapping_atom(coordinates, cell, unitcell, tol=1e-4):
     
     return mapping
 
-def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3):
+def unwrap_molecule_dimer(structure_path, supercell_array, nmols):
     """ Get single molecule and molecular pairs (dimer) files.
     Args:
     structure_path (str): structure file path
@@ -242,8 +244,14 @@ def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3):
     unitcell = atoms_unitcell.get_scaled_positions() # Get scaled positions of the atoms in the unit cell
     atoms, full_mols, nearest_idx, _ = neighbor(atoms_unitcell, supercell_array) 
 
-    allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
-                                    list(full_mols[nearest_idx[1]]),list(full_mols[nearest_idx[2]])))
+    if nmols == 3:
+        allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
+                                        list(full_mols[nearest_idx[1]]),list(full_mols[nearest_idx[2]])))
+    elif nmols == 4:
+        allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
+                                        list(full_mols[nearest_idx[1]]),list(full_mols[nearest_idx[2]]),
+                                        list(full_mols[nearest_idx[3]])))
+
     newmol = atoms[allmols_index]
     ase.io.write('allmols.xyz', newmol) # Check the geometry of the molecules
    
@@ -284,7 +292,7 @@ def get_displacement(atoms):
             for sign in [-1, 1]:
                 yield (na,vec,sign) 
         
-def create_displacement(delta=0.01, nmols=3):
+def create_displacement(nmols, delta=0.01):
     """ Create atomic displacement and return each displaced structures
     Args: 
     delta (float): Magnitude of displacement in Angstrom (Defaults to 0.01A)
@@ -295,6 +303,8 @@ def create_displacement(delta=0.01, nmols=3):
     # List of folders to create
     if nmols == 3:
         folder_list = ['1', '2', '3', 'A', 'B', 'C']
+    elif nmols == 4:
+        folder_list = ['1', '2', '3', '4', 'A', 'B', 'C']
 
     # Create the folders under the "displacements" directory
     for folder in folder_list:
