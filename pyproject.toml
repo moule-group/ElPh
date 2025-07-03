@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-elph = "elph:main"
+elph = "elph.main:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -402,8 +402,8 @@ def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
     mobility = {'Localization length in X': round(avglx2, 3),
                 'Localization length in Y': round(avgly2, 3),
                 'Inverse participation ratio': round(avgipr, 3),
-                'Mobility on X direction (cm^/Vs)': round(mobilityx, 3), 
-                'Mobility on Y direction (cm^/Vs)': round(mobilityy, 3),
+                'Mobility on X direction (cm^2/Vs)': round(mobilityx, 3), 
+                'Mobility on Y direction (cm^2/Vs)': round(mobilityy, 3),
                 'Average mobility': round(mobility_average, 3)
     }
     
