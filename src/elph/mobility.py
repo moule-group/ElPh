@@ -144,7 +144,7 @@ class Mobility():
 
         #np.random.seed(42)  # Ensures same random values each time
         gaussian_matrix = np.random.normal(0, 1, size=interaction_matrix.shape)
-        gaussian_matrix = np.tril(gaussian_matrix) + np.tril(gaussian_matrix, -1).T
+        gaussian_matrix = np.tril(gaussian_matrix) + np.triu(gaussian_matrix, 1).T # This is to make the matrix symmetric, as previously it was only lower triangular
     
         H = Hij_matrix + sigmaij_matrix * gaussian_matrix
         np.fill_diagonal(H, diag_eng)
@@ -154,6 +154,12 @@ class Mobility():
     def ipr(self, eigenvecs):
         """ Calculate the Inverse Participation Ratio (IPR) of the charge carrier.
         The IPR is a measure of the localization of the wavefunction.
+        
+        This implementation calculates the basic IPR formula: IPR = 1/sum(|psi_k|^4)
+        for the ground state (first eigenvector). This is a simplified version that
+        does not include trajectory averaging or time evolution as described in the
+        full theoretical formulation.
+        
         Args:
         eigenvecs (np.array): The eigenvectors of the Hamiltonian matrix
         ----------------------------------------------
