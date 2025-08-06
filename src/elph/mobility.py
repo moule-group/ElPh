@@ -111,41 +111,52 @@ class Mobility():
 
     def hamiltonian(self, sites):
         """ Define the tight-binding Hamiltonian matrix for the charge carrier.
-        H = H_el + H_ph + H_elph
-        in original TLT: H_ph = 0, H_ii = 0; but we can add H_ii and H_elph,l
-        H = (H_ii + H_elph,l) + H_ij + H_elph,nl
-        ---------------------------------------------
-        Return:
-        H: Hamiltonian matrix
+        
+        The Hamiltonian is constructed as:
+        H = H_ii + H_ij + H_disorder
+        
+        Where:
+        - H_ii: Diagonal on-site energies with Gaussian disorder
+        - H_ij: Off-diagonal transfer integrals between neighboring sites
+        - H_disorder: Gaussian disorder applied to transfer integrals
+        
+        The matrix is guaranteed to be Hermitian (symmetric for real matrices).
+        
+        Args:
+        sites (np.array): Site positions in the lattice
+        
+        Returns:
+        H (np.array): Hermitian Hamiltonian matrix
         """
+        # Input validation
+        if sites is None or len(sites) == 0:
+            raise ValueError("Sites array cannot be empty")
+        
         interaction_matrix = self.interaction(sites)
         Hij_matrix = np.copy(interaction_matrix).astype(float) # Transfer integral matrix (J_ij)
         sigmaij_matrix = np.copy(interaction_matrix).astype(float) # Dynamic disorder matrix (in TLT, we treat this as static disorder)
 
-        # Diagonal (H_ii)
+        # Diagonal on-site energies (H_ii) with Gaussian disorder
         diag_eng = np.random.normal(loc=self.Epsilon, scale=self.sigma_ii, size=len(sites))
 
-        # Inter-molecular transfer integral matrix (H_ij)
-        j1 = self.j_ij[0]
-        j2 = self.j_ij[1]
-        j3 = self.j_ij[2]
+        # Off-diagonal transfer integrals (H_ij) based on interaction distances
+        j1, j2, j3 = self.j_ij[0], self.j_ij[1], self.j_ij[2]
+        Hij_matrix[Hij_matrix==1] = j1  # Nearest neighbors
+        Hij_matrix[Hij_matrix==2] = j2  # Second nearest neighbors  
+        Hij_matrix[Hij_matrix==3] = j3  # Third nearest neighbors
 
-        Hij_matrix[Hij_matrix==1] = j1
-        Hij_matrix[Hij_matrix==2] = j2
-        Hij_matrix[Hij_matrix==3] = j3
-
-        s1 = self.sigma_ij[0]
-        s2 = self.sigma_ij[1]
-        s3 = self.sigma_ij[2]
-
+        # Disorder strength matrix (sigma_ij) for transfer integral fluctuations
+        s1, s2, s3 = self.sigma_ij[0], self.sigma_ij[1], self.sigma_ij[2]
         sigmaij_matrix[sigmaij_matrix==1] = s1
         sigmaij_matrix[sigmaij_matrix==2] = s2
         sigmaij_matrix[sigmaij_matrix==3] = s3
 
-        #np.random.seed(42)  # Ensures same random values each time
+        # Generate Gaussian disorder matrix and ensure Hermiticity
         gaussian_matrix = np.random.normal(0, 1, size=interaction_matrix.shape)
-        gaussian_matrix = np.tril(gaussian_matrix) + np.triu(gaussian_matrix, 1).T # This is to make the matrix symmetric, as previously it was only lower triangular
+        # Make matrix Hermitian: H_ij = H_ji* (symmetric for real matrices)
+        gaussian_matrix = np.tril(gaussian_matrix) + np.triu(gaussian_matrix, 1).T
     
+        # Construct final Hamiltonian: H = H_ij + disorder + diagonal
         H = Hij_matrix + sigmaij_matrix * gaussian_matrix
         np.fill_diagonal(H, diag_eng)
 
