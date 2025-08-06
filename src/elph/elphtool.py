@@ -508,7 +508,7 @@ def _calculate_reorganization_energy(freqs, huangrhys):
     Returns:
         np.ndarray: Reorganization energies (eV)
     """
-    # λ_i = h_bar*omega_i * S_i
+    # lambda_i = h_bar*omega_i * S_i
     # convert cm^-1 to eV
     cm_1toev = 1.23984193e-4
     
