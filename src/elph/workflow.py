@@ -152,8 +152,8 @@ def run_lambda(basis, func):
         os.chdir(os.path.join(main_path,'local'))
 
         if not os.path.exists(os.path.join(main_path,'local','cation.log')):
-            ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='neutral', functional=func, ncharge=0)
-            ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', functional=func, ncharge=1)
+            ep.gaussian_opt(atoms=orginal_atoms.copy(), bset=basis, label='neutral', functional=func, ncharge=0)
+            ep.gaussian_opt(atoms=orginal_atoms.copy(), bset=basis, label='cation', functional=func, ncharge=1)
             ep.hr_factor(bset=basis, functional=func)
 
         eng_n, freq_n, huangrhys_n, reorg_n, gii_n, gii_n_cart = ep.parse_log('neutral.log', 'hr_neutral.log')
