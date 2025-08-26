@@ -117,7 +117,7 @@ def run_j0(basis, func, supercell_array, nmols):
 
             jA_eff, jA = ep.run_catnip('./1/1.pun', './2/2.pun', './A/A.pun', './1/mo.log', './2/mo.log', './A/mo.log')
             jB_eff, jB = ep.run_catnip('./1/1.pun', './3/3.pun', './B/B.pun', './1/mo.log', './3/mo.log', './B/mo.log')
-            jC_eff, jC = ep.run_catnip('./1/1.pun', './4/4.pun', './C/C.pun', './2/mo.log', './3/mo.log', './C/mo.log')
+            jC_eff, jC = ep.run_catnip('./1/1.pun', './4/4.pun', './C/C.pun', './1/mo.log', './4/mo.log', './C/mo.log')
             jD_eff, jD = ep.run_catnip('./2/2.pun', './3/3.pun', './D/D.pun', './2/mo.log', './3/mo.log', './D/mo.log')
             jE_eff, jE = ep.run_catnip('./2/2.pun', './4/4.pun', './E/E.pun', './2/mo.log', './4/mo.log', './E/mo.log')
             jF_eff, jF = ep.run_catnip('./3/3.pun', './4/4.pun', './F/F.pun', './3/mo.log', './4/mo.log', './F/mo.log')
@@ -170,8 +170,8 @@ def run_lambda(basis, func):
         os.chdir(os.path.join(main_path,'local'))
 
         if not os.path.exists(os.path.join(main_path,'local','cation.log')):
-            ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='neutral', functional=func, ncharge=0)
-            ep.gaussian_opt(atoms=orginal_atoms, bset=basis, label='cation', functional=func, ncharge=1)
+            ep.gaussian_opt(atoms=orginal_atoms.copy(), bset=basis, label='neutral', functional=func, ncharge=0)
+            ep.gaussian_opt(atoms=orginal_atoms.copy(), bset=basis, label='cation', functional=func, ncharge=1)
             ep.hr_factor(bset=basis, functional=func)
 
         eng_n, freq_n, huangrhys_n, reorg_n, gii_n, gii_n_cart = ep.parse_log('neutral.log', 'hr_neutral.log')

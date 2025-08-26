@@ -242,7 +242,7 @@ def unwrap_molecule_dimer(structure_path, supercell_array, nmols):
     atoms_unitcell = ase.io.read(structure_path) # Load structure
     cell = atoms_unitcell.get_cell() # Get cell vectors of the unit cell
     unitcell = atoms_unitcell.get_scaled_positions() # Get scaled positions of the atoms in the unit cell
-    atoms, full_mols, nearest_idx, _ = neighbor(atoms_unitcell, supercell_array, nmols)
+    atoms, full_mols, nearest_idx, _ = neighbor(atoms_unitcell, supercell_array, nmols, nmols)
 
     if nmols == 3:
         allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
