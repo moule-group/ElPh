@@ -33,9 +33,9 @@ For installing Catnip (ChArge TraNsfer Integral Package), please refer to https:
 
 ## Transfer Integral
 
-First step:  Input the number of molecules (defaults to 3) needs to be extracted, the code will generate monomer and dimer structure files.
+**First step:**  Input the number of molecules (defaults to 3) to be extracted. The code will generate monomer and dimer structure files.
 
-Second step: Prepare input files in the folder: POSCAR (VASP structure format) ; FORCE_SETS from Phonopy simulation; phonopy_disp.yaml from Phonopy simulation.
+**Second step:** Prepare input files in the folder: **POSCAR** (VASP structure format) ; **FORCE_SETS** from Phonopy simulation; phonopy_disp.yaml from Phonopy simulation.
 
 Note: We consider 2D plane (high mobility plane of organic semiconductors) and only pick 3 nearest neighbors in this 2D plane. The 3 numbering monomers will be pair A (monomer 1 and 2); pair B (monomer 1 and 3); pair C (monomer 2 and 3), pair A and pair B will be transversed pairs and pair C will be parallel pairs (the shorter lattice parameter in 2D plane).
 
@@ -53,7 +53,7 @@ elph -w 2
 
 ## Transient Localization Theory Charge Carrier Mobility
 
-Prepare mobility.json file as the input, then run
+Prepare **mobility.json** as the input, then run:
 
 ```
 elph -w 3
