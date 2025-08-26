@@ -55,8 +55,16 @@ def run_j0(basis, func, supercell_array, nmols):
             os.makedirs(os.path.join(main_path, 'j'), exist_ok=True) # Create a directory for J_ij
 
         except FileNotFoundError:
-                ut.print_error("Structure (.cif; POSCAR ...) file not found in the current directory. Exiting.") 
-                sys.exit(1)  # Exit the script with an error
+            ut.print_error("Structure (.cif; POSCAR ...) file not found in the current directory. Exiting.") 
+            sys.exit(1)
+
+        if not os.path.exists(main_path + "/FORCE_SETS"):
+            ut.print_error("'FORCE_SETS' file not found in the current directory. Exiting.") 
+            sys.exit(1)
+
+        if not os.path.exists(main_path + "/phonopy_disp.yaml"):
+            ut.print_error("'phonopy_disp.yaml' not found in the current directory. Exiting.") 
+            sys.exit(1)
 
         if not xyz_file:
             os.makedirs(os.path.join(main_path, 'mapping'), exist_ok=True) # Create a directory for J_ij
