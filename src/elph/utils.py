@@ -1,4 +1,5 @@
 import time
+import sys
 
 def print_start():
     """ printing the start of the DCS-Flow"""
@@ -37,7 +38,7 @@ def print_end():
     )
     print(time.ctime())
 
-def print_error(message):
+def throw_error(message, status=1):
     """ printing the error message 
     Args:
     message (str): The error message
@@ -54,3 +55,4 @@ def print_error(message):
     """)
     print(message)
     print(time.ctime())
+    sys.exit(status)

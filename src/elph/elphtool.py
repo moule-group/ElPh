@@ -25,21 +25,29 @@ cm_1toev = 1.23984193e-4
 kb = 8.6173e-5 # eV K-1 
 thztoev = 4.13566733e-3 # THz to eV
 
-def getGeometry(path):
-    """ Using glob function in python to find the structure
-    file in the current path
-    The type of the structure files: ".cif"
-    Args:
-    path: The current directory (use os.getcwd())
-    ----------------------------------------------
-    Return:
-    file: The structure file in the path
+def getGeometry(path: Path):
     """
-    file = glob.glob(path + "/POSCAR") +  glob.glob(path + "/*.xyz") 
-    if len(file) == 0:
-        raise FileNotFoundError
+    Find the structure file in the given path.
+    Looks for 'POSCAR' or any '*.xyz' file.
+    Args:
+        path (Path): The current directory (Path.cwd()).
+    Returns:
+        Path: The first structure file found.
+    Raises:
+        FileNotFoundError: If no structure file is found.
+    """
+    path = Path(path)  # Ensure Path object
+        
+    poscar = path / "POSCAR"
+    if poscar.exists():
+        return poscar
     
-    return file[0]
+    # Get first xyz file
+    xyz_files = list(path.glob("*.xyz"))
+    if xyz_files:
+        return xyz_files[0]
+
+    raise FileNotFoundError(f"No structure file found in {path} (POSCAR or .xyz).")
     
 def phonon(natoms, mesh):
     """ Obtain FORCE_CONSTANTS file for specific calculator from Phonopy and return normal mode frequencies;
@@ -58,8 +66,7 @@ def phonon(natoms, mesh):
         print(" FORCE_SETS already exists, continue calculation! ")
     
     else:
-        ut.print_error(" FORCE_SETS file is missing ")
-        sys.exit(1)
+        ut.throw_error(" FORCE_SETS file is missing ")
     
     phonon = phonopy.load('phonopy_disp.yaml')
     phonon.run_mesh(mesh,with_eigenvectors=True)
@@ -150,7 +157,7 @@ def neighbor(atoms_unitcell, supercell_array, nmols):
             break
         
         attempt += 1
-        ut.print_error(f"No molecules matched the expected atom count of {natoms_in_cell / nmol_in_cell}. Increasing the cutoff distance and try again.")
+        print(f"No molecules matched the expected atom count of {natoms_in_cell / nmol_in_cell}. Increasing the cutoff distance and try again.")
         cutoff_h = [np.float64(x+0.03*attempt) if x == 0.31 else x for x in natural_cutoffs(atoms)] # increase Hydrogen cutoff
         cutoff_c = [np.float64(x+0.03*attempt) if x == 0.76 else x for x in cutoff_h] # increase Carbon cutoff
         cutoff_n = [np.float64(x+0.03*attempt) if x == 0.71 else x for x in cutoff_c] # increase Nitrogen cutoff
@@ -159,8 +166,7 @@ def neighbor(atoms_unitcell, supercell_array, nmols):
         cutoff = [np.float64(x+0.03*attempt) if x == 0.57 else x for x in cutoff_si] # increase flourine cutoff
 
     if not full_mols:
-        ut.print_error("Failed to find any full molecules after all retries. Exiting.")
-        sys.exit(1)
+        ut.throw_error("Failed to find any full molecules after all retries. Exiting.")
 
     coms = [] 
     for mol_indices in full_mols: # calculate the center of mass for each full molecule
@@ -228,53 +234,78 @@ def mapping_atom(coordinates, cell, unitcell, tol=1e-4):
     
     return mapping
 
-def unwrap_molecule_dimer(structure_path, supercell_array, nmols):
-    """ Get single molecule and molecular pairs (dimer) files.
+def unwrap_molecule_dimer(structure_path, supercell_array, nmols=3, overwrite=False):
+    """Get single molecule and molecular pairs (dimer) files.
+
     Args:
-    structure_path (str): structure file path
-    supercell_martix (tuple): supercell size
-    nmols (int): number of molecules that are extracted (Defaults to 3)
-    -----------------------------------------------
-    Return:
-    molecule_{x}.xyz file, where x is the numbering (3 files)
-    dimer_{A}.xyz, where A is the labeling (3 files)
+        structure_path (str): structure file path
+        supercell_array (tuple): supercell size
+        nmols (int): number of molecules that are extracted (Defaults to 3)
+        overwrite (bool): whether to overwrite existing files
+
+    Returns:
+        Writes:
+            - monomer_{i}.xyz (for i in 1..nmols)
+            - dimer_{A}.xyz (for A in A, B, ...)
+            - map_{A}.npz mapping files
     """
-    atoms_unitcell = ase.io.read(structure_path) # Load structure
-    cell = atoms_unitcell.get_cell() # Get cell vectors of the unit cell
-    unitcell = atoms_unitcell.get_scaled_positions() # Get scaled positions of the atoms in the unit cell
+    structure_path = Path(structure_path)
+    base_path = Path.cwd()
+
+    atoms_unitcell = ase.io.read(structure_path)  # Load structure
+    cell = atoms_unitcell.get_cell()              # Get cell vectors of the unit cell
+    unitcell = atoms_unitcell.get_scaled_positions()  # Get scaled positions
     atoms, full_mols, nearest_idx, _ = neighbor(atoms_unitcell, supercell_array, nmols)
 
-    if nmols == 3:
-        allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
-                                        list(full_mols[nearest_idx[1]]),list(full_mols[nearest_idx[2]])))
-    elif nmols == 4:
-        allmols_index = np.concatenate((list(full_mols[nearest_idx[0]]),
-                                        list(full_mols[nearest_idx[1]]),list(full_mols[nearest_idx[2]]),
-                                        list(full_mols[nearest_idx[3]])))
+    # --- Generate allmols.xyz ---
+    allmols_path = base_path / "allmols.xyz"
+    if not allmols_path.exists() or overwrite:
+        allmols_index = np.concatenate([
+            list(full_mols[nearest_idx[i]]) for i in range(nmols)
+        ])
+        newmol = atoms[allmols_index]
+        ase.io.write(allmols_path, newmol)
+    else:
+        print(f"File already exists at {allmols_path}")
 
-    newmol = atoms[allmols_index]
-    ase.io.write('allmols.xyz', newmol) # Check the geometry of the molecules
-   
+    # --- Monomers ---
     for i in range(nmols):
-        os.mkdir(f'{i+1}')
-        name_mol = os.path.join(str(i+1), f"monomer_{i+1}.xyz")
+        monomer_dir = base_path / str(i+1)
+        monomer_path = monomer_dir / f"monomer_{i+1}.xyz"
+        if monomer_path.exists() and not overwrite:
+            print(f"File already exists at {monomer_path}")
+            continue
+
+        monomer_dir.mkdir(parents=True, exist_ok=True)
         atoms_id = list(full_mols[nearest_idx[i]])
         mol = atoms[atoms_id]
         mol.set_pbc((False, False, False))
-        ase.io.write(name_mol, mol)
+        ase.io.write(monomer_path, mol)
 
-    pairs = list(combinations(nearest_idx, 2)) 
+    # --- Dimers ---
+    mapping_dir = base_path / "mapping"
+    mapping_dir.mkdir(parents=True, exist_ok=True)
+
+    pairs = list(combinations(nearest_idx, 2))
     for j, letter in enumerate(string.ascii_uppercase[:len(pairs)]):
-        os.mkdir(letter)
-        name_dimer = os.path.join(letter, f"dimer_{letter}.xyz")
+        dimer_dir = base_path / letter
+        dimer_dir.mkdir(parents=True, exist_ok=True)
+
+        dimer_path = dimer_dir / f"dimer_{letter}.xyz"
+        mapping_path = mapping_dir / f"map_{letter}.npz"
+
+        if dimer_path.exists() and mapping_path.exists() and not overwrite:
+            print(f"File already exists at {dimer_path} and {mapping_path}")
+            continue
+
         atoms_id1 = list(full_mols[pairs[j][0]])
         atoms_id2 = list(full_mols[pairs[j][1]])
         dimer = atoms[atoms_id1] + atoms[atoms_id2]
         dimer.set_pbc((False, False, False))
-        ase.io.write(name_dimer, dimer) 
+        ase.io.write(dimer_path, dimer)
 
         mapping = mapping_atom(dimer.get_positions(), cell, unitcell, tol=1e-4)
-        np.savez_compressed(os.path.join('mapping', f'map_{letter}.npz'), mapping=mapping) # Save the mapping of atoms
+        np.savez_compressed(mapping_path, mapping=mapping)
         
 def get_displacement(atoms):
     """ Get numbering of displaced atom, displacement direction (x,y,z) and sign (+,-) 
@@ -298,7 +329,7 @@ def create_displacement(nmols, delta=0.01):
     delta (float): Magnitude of displacement in Angstrom (Defaults to 0.01A)
     nmols (int): Number of molecules that are extracted (Defaults to 3)
     """
-    main_path = os.getcwd()
+    base_path = os.getcwd()
     
     # List of folders to create
     if nmols == 3:
@@ -332,7 +363,7 @@ def create_displacement(nmols, delta=0.01):
             ase.io.write(disp_name+'.xyz', disp_atoms)
             os.chdir('../..')
 	   
-        os.chdir(main_path) 
+        os.chdir(base_path) 
 
 def gaussian_opt(atoms, bset, label, functional, ncharge=0):
     """ Run Gaussian simulation to get the onsite energy for the system
@@ -612,7 +643,7 @@ def validate_parse_log_results(eng, freqs, huangrhys, reorg_eng, gii_squared, gi
     
     return True
 
-def mol_orbital(bset, functional, atoms=None):
+def mol_orbital(bset, functional, overwrite=False, atoms=None):
     """ Run Gaussian to compute the molecular orbitals coefficient and energy for the system (Single point calculation)
     Args:
     bset (list): Basis set for Gaussian calculation 
@@ -623,25 +654,29 @@ def mol_orbital(bset, functional, atoms=None):
     .pun file which contains molecular orbital for the cacluation later for J 
     .log file output file from Gaussian
     """
-    if not atoms:
-        path = os.getcwd()
-        geometry = getGeometry(path)
-        atoms = ase.io.read(geometry)
-    
-    pun_files = glob.glob('*.pun')
-    if not pun_files: # If there is no Gaussian output, it will run Gaussian
-        atoms.calc = Gaussian(mem='18GB',
-                              nprocshared=12,
-                              label='mo',
-                              save=None,
-                              method=functional[1],
-                              basis=bset[1],  
-                              scf='tight',
-                              pop='full',
-                              extra='nosymm punch=mo EmpiricalDispersion=GD3BJ iop(3/33=1)') # iop(3/33=1) output one-electron integrals to log file.
+    base_path = Path.cwd()    
+    mo_log_path = base_path / "mo.log"
+    pun_path = base_path / f"{base_path.name}.pun"
 
-        atoms.get_potential_energy()
-        os.rename('fort.7', os.path.basename(path) + '.pun')
+    if (mo_log_path.exists() and pun_path.exists()) and not overwrite:
+        print(f"File already exists at {mo_log_path} and {pun_path}")
+        return
+
+    if atoms is None:
+        geometry = getGeometry(base_path)
+        atoms = ase.io.read(geometry)
+    atoms.calc = Gaussian(mem='18GB',
+                            nprocshared=12,
+                            label='mo',
+                            save=None,
+                            method=functional[1],
+                            basis=bset[1],  
+                            scf='tight',
+                            pop='full',
+                            extra='nosymm punch=mo EmpiricalDispersion=GD3BJ iop(3/33=1)') # iop(3/33=1) output one-electron integrals to log file.
+    atoms.get_potential_energy()
+    (base_path / "fort.7").rename(pun_path)
+    
 
 def run_catnip(path1, path2, path3, path4, path5, path6):
     """ Run Catnip to calculate the transfer integral

@@ -49,9 +49,9 @@ def visualize():
     Return:
     A plot for visualization
     """
-    main_path = os.getcwd() # Main directory 
-    atomic_structure = ase.io.read(getGeometry(main_path)) # Load structure
-    formula_units_Z = extract_Z_from_cif(getGeometry(main_path))
+    base_path = os.getcwd() # Main directory 
+    atomic_structure = ase.io.read(getGeometry(base_path)) # Load structure
+    formula_units_Z = extract_Z_from_cif(getGeometry(base_path))
     atoms_per_molecule = len(atomic_structure) // int(formula_units_Z)
     print(f'Atoms in molecule: {atoms_per_molecule}')
 

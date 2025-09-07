@@ -5,29 +5,72 @@ import numpy as np
 import os
 import sys
 import shutil
+import shlex
+import subprocess
+import string
+from pathlib import Path
+from itertools import combinations
 from scipy.constants import h, k
 import elph.utils as ut
 import elph.elphtool as ep
 import elph.svdprojection as svd
 from elph.mobility import Mobility
 
-def getGeometry(path):
-    """ Using glob function in python to find the structure
-    file in the current path
-    The type of the structure files: ".cif"
-    Args:
-    path: The current directory (use os.getcwd())
-    ----------------------------------------------
-    Return:
-    file: The structure file in the path
+def getGeometry(path: Path):
     """
-    file = glob.glob(path + "/POSCAR") + glob.glob(path + "/*.cif")
-    if len(file) == 0:
-        raise FileNotFoundError
+    Find the structure file in the given path.
+    Looks for 'POSCAR' or any '*.cif' file.
+    Args:
+        path (Path): The current directory (Path.cwd()).
+    Returns:
+        Path: The first structure file found.
+    Raises:
+        FileNotFoundError: If no structure file is found.
+    """
+    path = Path(path)  # Ensure Path object
+        
+    poscar = path / "POSCAR"
+    if poscar.exists():
+        return poscar
     
-    return file[0]
+    # Get first cif file
+    cif_files = list(path.glob("*.cif"))
+    if cif_files:
+        return cif_files[0]
 
-def run_j0(basis, func, supercell_array, nmols):
+    raise FileNotFoundError(f"No structure file found in {path} (POSCAR or .cif).")
+    
+def check_j0_dependencies():
+    base_path = Path.cwd()
+    phonon_path = base_path / "2-phonons"
+
+    # Geometry file
+    try:
+        getGeometry(base_path)
+    except FileNotFoundError:
+        ut.throw_error("Structure (.cif; POSCAR ...) file not found in the current directory. Exiting.") 
+
+    # FORCE_SETS
+    force_sets = base_path / "FORCE_SETS"
+    phonon_force_sets = phonon_path / "FORCE_SETS"
+    if not force_sets.exists():
+        if phonon_force_sets.exists():
+            print(f"'FORCE_SETS' not found in {base_path}, but found in '2-phonons'. Copying...")
+            shutil.copy(phonon_force_sets, force_sets)
+        else:
+            ut.throw_error("'FORCE_SETS' file not found in the current directory or in '2-phonons'. Exiting.")
+
+    # phonopy_disp.yaml
+    disp_yaml = base_path / "phonopy_disp.yaml"
+    phonon_disp_yaml = phonon_path / "phonopy_disp.yaml"
+    if not disp_yaml.exists():
+        if phonon_disp_yaml.exists():
+            print(f"'phonopy_disp.yaml' not found in {base_path}, but found in '2-phonons'. Copying...")
+            shutil.copy(phonon_disp_yaml, disp_yaml)
+        else:
+            ut.throw_error("'phonopy_disp.yaml' file not found in the current directory or in '2-phonons'. Exiting.")
+
+def run_j0(basis, func, supercell_array, nmols, overwrite):
     """ Main function for running Gaussian and Catnip to get transfer integral J_0
     Args:
     supercell_array (tuple): The supercell matrix
@@ -46,110 +89,76 @@ def run_j0(basis, func, supercell_array, nmols):
     ---------------------------- 
     Return:
     j_A, j_B, j_C as j0.json and j0_eff.json file
-    """    
-    main_path = os.getcwd() # Main directory which contain all subfolders
-    phonon_path = main_path + "/2-phonons"
-    j0_file = glob.glob(os.path.join(main_path, 'j', 'j0_eff.json'))
-    xyz_file = glob.glob(os.path.join(main_path, '1', 'monomer_1.xyz'))
-    if not j0_file: # If j_0.json is not exists, run the following simulation
-        try:
-            geometry = getGeometry(main_path) # Get the geometry file
-            os.makedirs(os.path.join(main_path, 'j'), exist_ok=True) # Create a directory for J_ij
+    """
+    base_path = Path.cwd()  # Main directory which contains all subfolders
 
-        except FileNotFoundError:
-            ut.print_error("Structure (.cif; POSCAR ...) file not found in the current directory. Exiting.") 
-            sys.exit(1)
-
-        if not os.path.exists(main_path + "/FORCE_SETS"):
-            if os.path.exists(phonon_path + "/FORCE_SETS"):
-                print(f"'FORCE_SETS' not found in {main_path}, but found in '2-phonons'. Copying...")
-                shutil.copy(phonon_path + "/FORCE_SETS", main_path + "/FORCE_SETS")
-            else:
-                ut.print_error("'FORCE_SETS' file not found in the current directory or in '2-phonons'. Exiting.")
-                sys.exit(1)
-
-        if not os.path.exists(main_path + "/phonopy_disp.yaml"):
-            if os.path.exists(phonon_path + "/phonopy_disp.yaml"):
-                print(f"'phonopy_disp.yaml' not found in {main_path}, but found in '2-phonons'. Copying...")
-                shutil.copy(phonon_path + "/phonopy_disp.yaml", main_path + "/phonopy_disp.yaml")
-            else:
-                ut.print_error("'phonopy_disp.yaml' file not found in the current directory or in '2-phonons'. Exiting.")
-                sys.exit(1)
-
-        if not xyz_file:
-            os.makedirs(os.path.join(main_path, 'mapping'), exist_ok=True) # Create a directory for J_ij
-            ep.unwrap_molecule_dimer(geometry, supercell_array, nmols) # Unwrap the crystal to get single molecule and dimers
-        
-        if nmols == 3:
-            path_list = ['./1','./2','./3','./A','./B','./C']
-
-            for path in path_list:
-                os.chdir(path)
-                ep.mol_orbital(bset=basis, functional=func) # Run Gaussian to get molecular orbitals
-                os.chdir(main_path)
-
-            # Calculate J 
-            jA_eff, jA = ep.run_catnip('./1/1.pun', './2/2.pun', './A/A.pun', './1/mo.log', './2/mo.log', './A/mo.log')
-            jB_eff, jB = ep.run_catnip('./1/1.pun', './3/3.pun', './B/B.pun', './1/mo.log', './3/mo.log', './B/mo.log')
-            jC_eff, jC = ep.run_catnip('./2/2.pun', './3/3.pun', './C/C.pun', './2/mo.log', './3/mo.log', './C/mo.log')
-
-            print(f' Done calculation on J_A = {jA_eff} eV ')
-            print(f' Done calculation on J_B = {jB_eff} eV ')
-            print(f' Done calculation on J_C = {jC_eff} eV ')
+    check_j0_dependencies()    
+    geometry = getGeometry(base_path)  # Get the geometry file
     
-            j0_eff = {'A':f'{jA_eff}', 
-                      'B':f'{jB_eff}',
-                      'C':f'{jC_eff}'
-                    }
-        
-            j0 = {'A':f'{jA}', 
-                  'B':f'{jB}',
-                  'C':f'{jC}'
-                    } 
-            
-        elif nmols == 4:
-            path_list = ['./1','./2','./3','./4','./A','./B','./C','./D','./E','./F'] 
+    monomer_labels = [str(i) for i in range(1, nmols + 1)]  # ["1", "2", ..., "N"]
+    dimer_pairs    = list(combinations(monomer_labels, 2))  # [(1,2), (1,3), ..., (N-1,N)] 
+    dimer_labels   = list(string.ascii_uppercase[:len(dimer_pairs)])  # ['A', 'B', 'C', ...]
 
-            for path in path_list:
-                os.chdir(path)
-                ep.mol_orbital(bset=basis, functional=func) # Run Gaussian to get molecular orbitals
-                os.chdir(main_path) 
+    monomer_dirs   = [base_path / i for i in monomer_labels]  # [Path("./1"), Path("./2"), ...]
+    dimer_dirs     = [base_path / L for L in dimer_labels]      # [Path("./A"), Path("./B"), ...]
+    dir_list       = monomer_dirs + dimer_dirs
 
-            jA_eff, jA = ep.run_catnip('./1/1.pun', './2/2.pun', './A/A.pun', './1/mo.log', './2/mo.log', './A/mo.log')
-            jB_eff, jB = ep.run_catnip('./1/1.pun', './3/3.pun', './B/B.pun', './1/mo.log', './3/mo.log', './B/mo.log')
-            jC_eff, jC = ep.run_catnip('./1/1.pun', './4/4.pun', './C/C.pun', './1/mo.log', './4/mo.log', './C/mo.log')
-            jD_eff, jD = ep.run_catnip('./2/2.pun', './3/3.pun', './D/D.pun', './2/mo.log', './3/mo.log', './D/mo.log')
-            jE_eff, jE = ep.run_catnip('./2/2.pun', './4/4.pun', './E/E.pun', './2/mo.log', './4/mo.log', './E/mo.log')
-            jF_eff, jF = ep.run_catnip('./3/3.pun', './4/4.pun', './F/F.pun', './3/mo.log', './4/mo.log', './F/mo.log')
+    # --- Create directories ---
+    (base_path / 'j').mkdir(exist_ok=True)
+    (base_path / 'mapping').mkdir(exist_ok=True)
+    for dir_path in dir_list:
+        dir_path.mkdir(exist_ok=True)
 
-            print(f' Done calculation on J_A = {jA_eff} eV ')
-            print(f' Done calculation on J_B = {jB_eff} eV ')
-            print(f' Done calculation on J_C = {jC_eff} eV ')
-            print(f' Done calculation on J_D = {jD_eff} eV ')
-            print(f' Done calculation on J_E = {jE_eff} eV ')
-            print(f' Done calculation on J_F = {jF_eff} eV ')
+    # --- Unwrap crystal monomer and dimer files ---
+    ep.unwrap_molecule_dimer(geometry, supercell_array, nmols, overwrite=overwrite)
     
-            j0_eff = {'A':f'{jA_eff}', 
-                      'B':f'{jB_eff}',
-                      'C':f'{jC_eff}',
-                      'D':f'{jD_eff}',
-                      'E':f'{jE_eff}',
-                      'F':f'{jF_eff}' 
-                    }
-        
-            j0 = {'A':f'{jA}', 
-                  'B':f'{jB}',
-                  'C':f'{jC}',
-                  'D':f'{jD}',
-                  'E':f'{jE}',
-                  'F':f'{jF}'
-                    } 
-    
-        with open(os.path.join(main_path, 'j', 'j0_eff.json'), 'w', encoding='utf-8') as f1:
+    # --- Run Gaussian for molecular orbitals ---
+    for dir_path in dir_list:
+        print(f"Running Gaussian in directory {dir_path.name}")
+        os.chdir(dir_path)
+        ep.mol_orbital(basis, func, overwrite=overwrite)
+    os.chdir(base_path)
+
+    # --- Run catnip for transfer integrals ---
+    j0_eff_path = base_path / 'j' / 'j0_eff.json'
+    j0_path = base_path / 'j' / 'j0.json'
+    j0_eff = {}
+    j0     = {}
+
+    if (j0_eff_path.exists() and j0_path.exists()) and not overwrite:
+        print(f"File already exists at {j0_eff_path} and {j0_path}")
+        return
+
+    for (i, j), L in zip(dimer_pairs, dimer_labels):
+        # Files for the two monomers and dimer 
+        pun_i = base_path / i / f"{i}.pun"
+        pun_j = base_path / j / f"{j}.pun"
+        pun_L = base_path / L / f"{L}.pun"
+
+        mo_i = base_path / i / "mo.log"
+        mo_j = base_path / j / "mo.log"
+        mo_L = base_path / L / "mo.log"
+
+        j_eff, j_raw = ep.run_catnip(pun_i, pun_j, pun_L, mo_i, mo_j, mo_L)
+
+        print(f"Finished calculation J_{L} = {j_eff} eV ")
+        j0_eff[L] = f"{j_eff}"
+        j0[L]     = f"{j_raw}"
+
+    # --- Dump JSONs ---
+    if not j0_eff_path.exists() or overwrite:
+        with j0_eff_path.open('w', encoding='utf-8') as f1:
             json.dump(j0_eff, f1, ensure_ascii=False, indent=4)
-            
-        with open(os.path.join(main_path, 'j', 'j0.json'), 'w', encoding='utf-8') as f2:
+            print(f"j0_eff saved to {j0_eff_path}")
+    else:
+        print(f"File already exists at {j0_eff_path}")
+        
+    if not j0_path.exists() or overwrite:
+        with j0_path.open('w', encoding='utf-8') as f2:
             json.dump(j0, f2, ensure_ascii=False, indent=4)
+            print(f"j0 saved to {j0_path}")
+    else:
+        print(f"File already exists at {j0_path}")
 
 def run_lambda(basis, func):
     """ Run onsite energy calculation using normal mode analysis to get reorganization energy &
@@ -161,15 +170,15 @@ def run_lambda(basis, func):
     Return:
     local.json file which saves onsite energy & reorganization energy (units: eV)
     """
-    main_path = os.getcwd()
-    orginal_atoms = ase.io.read(os.path.join(main_path,'1','monomer_1.xyz')) # Read the structure file
+    base_path = os.getcwd()
+    orginal_atoms = ase.io.read(os.path.join(base_path,'1','monomer_1.xyz')) # Read the structure file
 
-    if not os.path.exists(os.path.join(main_path,'local','local_epc.json')):
+    if not os.path.exists(os.path.join(base_path,'local','local_epc.json')):
         print(' Running local EPC calculation ... ')
-        os.mkdir(os.path.join(main_path,'local'))
-        os.chdir(os.path.join(main_path,'local'))
+        os.mkdir(os.path.join(base_path,'local'))
+        os.chdir(os.path.join(base_path,'local'))
 
-        if not os.path.exists(os.path.join(main_path,'local','cation.log')):
+        if not os.path.exists(os.path.join(base_path,'local','cation.log')):
             ep.gaussian_opt(atoms=orginal_atoms.copy(), bset=basis, label='neutral', functional=func, ncharge=0)
             ep.gaussian_opt(atoms=orginal_atoms.copy(), bset=basis, label='cation', functional=func, ncharge=1)
             ep.hr_factor(bset=basis, functional=func)
@@ -179,29 +188,29 @@ def run_lambda(basis, func):
 
         # 4-point method
         # Calculate onsite energy for relaxed neutral molecule (Rn)
-        #os.mkdir(os.path.join(main_path, 'reorgE', 'neutral_opt'))
-        #os.chdir(os.path.join(main_path, 'reorgE', 'neutral_opt'))
+        #os.mkdir(os.path.join(base_path, 'reorgE', 'neutral_opt'))
+        #os.chdir(os.path.join(base_path, 'reorgE', 'neutral_opt'))
         #ep.onsite_eng(atoms=orginal_atoms, bset=basis, opt=True)
         #neutral_rn_eng = ep.parse_log('mo.log')
         #os.chdir(os.pardir)
         # Calculate onsite energy for relax charged molecule (Rc)
-        #os.mkdir(os.path.join(main_path, 'reorgE', 'charged_opt'))
-        #os.chdir(os.path.join(main_path, 'reorgE', 'charged_opt'))
+        #os.mkdir(os.path.join(base_path, 'reorgE', 'charged_opt'))
+        #os.chdir(os.path.join(base_path, 'reorgE', 'charged_opt'))
         #ep.onsite_eng(atoms=orginal_atoms, bset=basis, ncharge=1, opt=True)
         #charged_rc_eng = ep.parse_log('mo_opt.log')
         #os.chdir(os.pardir)
 
         # Calculate onsite energy for charged molecule at Rn
-        #os.mkdir(os.path.join(main_path, 'reorgE', 'charged_at_Rn'))
-        #os.chdir(os.path.join(main_path, 'reorgE', 'charged_at_Rn'))
-        #cmol_rn = ase.io.read(os.path.join(main_path, 'onsiteE', 'charged_opt', 'opt.xyz')) # Read the structure file
+        #os.mkdir(os.path.join(base_path, 'reorgE', 'charged_at_Rn'))
+        #os.chdir(os.path.join(base_path, 'reorgE', 'charged_at_Rn'))
+        #cmol_rn = ase.io.read(os.path.join(base_path, 'onsiteE', 'charged_opt', 'opt.xyz')) # Read the structure file
         #ep.onsite_eng(atoms=cmol_rn, bset=basis, ncharge=1)
         #charged_rn_eng = ep.parse_log('mo_opt.log')
         #os.chdir(os.pardir)
         # Calcualte onsite energy for neutral molecule at Rc
-        #os.mkdir(os.path.join(main_path, 'reorgE', 'neutral_at_Rc'))
-        #os.chdir(os.path.join(main_path, 'reorgE', 'neutral_at_Rc'))
-        #mol_rc = ase.io.read(os.path.join(main_path, 'reorgE', 'neutral_opt', 'opt.xyz')) # Read the structure file
+        #os.mkdir(os.path.join(base_path, 'reorgE', 'neutral_at_Rc'))
+        #os.chdir(os.path.join(base_path, 'reorgE', 'neutral_at_Rc'))
+        #mol_rc = ase.io.read(os.path.join(base_path, 'reorgE', 'neutral_opt', 'opt.xyz')) # Read the structure file
         #ep.onsite_eng(atoms=mol_rc, bset=basis)
         #neutral_rc_eng = ep.parse_log('mo_opt.log')
         #os.chdir(os.pardir) 
@@ -236,7 +245,7 @@ def run_lambda(basis, func):
                 'reorg_eng_c': reorg_c
                }
         np.savez_compressed('local_epc.npz', **data) 
-        os.chdir(main_path)
+        os.chdir(base_path)
 
 def run_disp_j(basis, func, nmols):
     """ Main function for running Gaussian and Catnip to get transfer integral J for displaced molecules and dimers
@@ -248,8 +257,8 @@ def run_disp_j(basis, func, nmols):
     Return:
     j_list (list): The transfer integral list for displaced molecules and dimers!
     """
-    main_path = os.getcwd()
-    if not os.path.exists(os.path.join(main_path, 'C', 'displacements')):
+    base_path = os.getcwd()
+    if not os.path.exists(os.path.join(base_path, 'C', 'displacements')):
         print(' Creating displaced molecules and dimers ... ')
         ep.create_displacement(nmols=nmols)
         
@@ -276,20 +285,20 @@ def run_disp_j(basis, func, nmols):
             os.chdir(d)
             ep.mol_orbital(bset=basis, functional=func) # Run Gaussian to get molecular orbitals
             os.chdir(os.pardir)
-        os.chdir(main_path)
+        os.chdir(base_path)
         
     #### Calculate J ####
     
-    if not os.path.exists(os.path.join(main_path, 'disp_j', 'C_disp_J.npz')): # Check whether it is necessary to run Catnip
-        os.mkdir(os.path.join(main_path, 'disp_j')) # Create a directory for J_ij
+    if not os.path.exists(os.path.join(base_path, 'disp_j', 'C_disp_J.npz')): # Check whether it is necessary to run Catnip
+        os.mkdir(os.path.join(base_path, 'disp_j')) # Create a directory for J_ij
       
         for key, values in dimer_dict.items():
             j_list = [] # Reset j_list for each dimer
             mol_1 = values[0] # molecule 1
             mol_2 = values[1] # molecule 2
         
-            molecules = ase.io.read(f'{main_path}/{mol_1}/monomer_{mol_1}.xyz')
-            #dimers = ase.io.read(f'{main_path}/{key}/dimer_{key}.xyz')
+            molecules = ase.io.read(f'{base_path}/{mol_1}/monomer_{mol_1}.xyz')
+            #dimers = ase.io.read(f'{base_path}/{key}/dimer_{key}.xyz')
             offset = len(molecules) # This is because the for loop below only loop through molecule, and number of atoms in dimer is 2 times of a molecule
         
             for na, vec, sign in ep.get_displacement(molecules):  
@@ -313,7 +322,7 @@ def run_disp_j(basis, func, nmols):
                 j_list.append(j_2)
         
             data = {'J_ij': j_list} 
-            np.savez_compressed(os.path.join(main_path, 'disp_j', f'{key}_disp_J.npz'), **data)
+            np.savez_compressed(os.path.join(base_path, 'disp_j', f'{key}_disp_J.npz'), **data)
             print(f" Successfully create {key}_disp_J.npz file which saves J_ij!!! ")
             print(f" ------------------------------------------------------------------- ")
         
@@ -325,26 +334,26 @@ def run_matrix(mesh):
     Args:
     mesh (list): Need define a mesh grid. (Defaults to [8,8,8])
     """
-    main_path = os.getcwd()
+    base_path = os.getcwd()
     ####### Calculate J_ij matrix #########
-    jlist_A = np.load(os.path.join(main_path, 'disp_j', 'A_disp_J.npz'))['J_ij'] # - +
-    jlist_B = np.load(os.path.join(main_path, 'disp_j', 'B_disp_J.npz'))['J_ij'] # - +
-    jlist_C = np.load(os.path.join(main_path, 'disp_j', 'C_disp_J.npz'))['J_ij'] # - + 
+    jlist_A = np.load(os.path.join(base_path, 'disp_j', 'A_disp_J.npz'))['J_ij'] # - +
+    jlist_B = np.load(os.path.join(base_path, 'disp_j', 'B_disp_J.npz'))['J_ij'] # - +
+    jlist_C = np.load(os.path.join(base_path, 'disp_j', 'C_disp_J.npz'))['J_ij'] # - + 
  
     matrix_A = ep.get_deri_Jmatrix(jlist_A)
     matrix_B = ep.get_deri_Jmatrix(jlist_B)
     matrix_C = ep.get_deri_Jmatrix(jlist_C)
     
     ####### Connection with Phonon modes ########
-    main_path = os.getcwd()
-    atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
+    base_path = os.getcwd()
+    atoms = ase.io.read(getGeometry(base_path)) # Read the structure file
     natoms = len(atoms) # Number of atoms in the unitcell
     displacement, freqs_nl, nqpts = ep.phonon(natoms, mesh) # Run phonopy modulation to create eigendisplacements list 
     # The shape of displacement is [ phonon modes(number of q points * number of atoms in unitcell * 3), number of atoms in supercell, 3 (x,y,z) ]
     
-    map_idxA = np.load(os.path.join(main_path, 'mapping', 'map_A.npz'))['mapping'] # Load the pair index for dimer A
-    map_idxB = np.load(os.path.join(main_path, 'mapping', 'map_B.npz'))['mapping']
-    map_idxC = np.load(os.path.join(main_path, 'mapping', 'map_C.npz'))['mapping']
+    map_idxA = np.load(os.path.join(base_path, 'mapping', 'map_A.npz'))['mapping'] # Load the pair index for dimer A
+    map_idxB = np.load(os.path.join(base_path, 'mapping', 'map_B.npz'))['mapping']
+    map_idxC = np.load(os.path.join(base_path, 'mapping', 'map_C.npz'))['mapping']
     displacement_A = displacement[:,map_idxA,:]
     displacement_B = displacement[:,map_idxB,:]
     displacement_C = displacement[:,map_idxC,:]
@@ -441,15 +450,15 @@ def run_svd_projection(nqpts, temp=298.0):
     print(" Running phonon modes projections using SVD ... ")
     cm_1tothz = 3e-2  # Convert cm-1 to THz
 
-    main_path = os.getcwd()
-    os.makedirs(os.path.join(main_path, 'svd'), exist_ok=True) # Create a directory for SVD projection
-    atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
+    base_path = os.getcwd()
+    os.makedirs(os.path.join(base_path, 'svd'), exist_ok=True) # Create a directory for SVD projection
+    atoms = ase.io.read(getGeometry(base_path)) # Read the structure file
     natoms = len(atoms)
     nmodes = 3 * natoms
 
-    freq_l_n = np.load(os.path.join(main_path, 'local', 'local_epc.npz'))['freq_n']
+    freq_l_n = np.load(os.path.join(base_path, 'local', 'local_epc.npz'))['freq_n']
     freq_l_n *= cm_1tothz # Convert to Hz
-    freq_l_c = np.load(os.path.join(main_path, 'local', 'local_epc.npz'))['freq_c']
+    freq_l_c = np.load(os.path.join(base_path, 'local', 'local_epc.npz'))['freq_c']
     freq_l_c *= cm_1tothz # Convert to Hz
     freq_l = np.concatenate((freq_l_n, freq_l_c), axis=0)
     freq_nl = np.loadtxt('frequencies.txt')[0:nmodes*nqpts]
@@ -486,9 +495,75 @@ def run_svd_projection(nqpts, temp=298.0):
                 'coeff_sys':coeff_sys_nl,
                 'coeff_bath':coeff_bath_nl}
     
-    np.savez_compressed(os.path.join(main_path, 'svd','svd_result_local.npz'), **result_l) 
-    np.savez_compressed(os.path.join(main_path, 'svd','svd_result_nonlocal.npz'), **result_nl) 
+    np.savez_compressed(os.path.join(base_path, 'svd','svd_result_local.npz'), **result_l) 
+    np.savez_compressed(os.path.join(base_path, 'svd','svd_result_nonlocal.npz'), **result_nl) 
 
-    
-   
-    
+
+def args_format(args):
+    parts = []
+    for key, val in vars(args).items():
+        if val is None:
+            continue
+        opt = "--" + key.replace("_", "-")
+        if isinstance(val, bool):
+            # include flag if True (store_true semantics)
+            if val:
+                parts.append(opt)
+        elif isinstance(val, (list, tuple)):
+            parts.append(opt)
+            parts += [shlex.quote(str(x)) for x in val]
+        else:
+            parts += [opt, shlex.quote(str(val))]
+    return " ".join(parts)
+
+def submit_slurm_script(args):
+    if args.workflow == 1:
+        check_j0_dependencies()
+
+    # variables from args for slurm script
+    base_path = Path.cwd()
+    node_type = "gpu" if args.gpu else "cpu"
+    omp_threads = 1 if args.gpu else 2
+    cpu_bind = "--cpu-bind=cores"
+    gpu_bind = "--gpu-bind=none" if args.gpu else ""
+    job_name = f"elph_{base_path.name}_w{args.workflow}"
+
+    if args.gpu:
+        srun_line = f"srun -n {args.hpc[0]} -c {args.hpc[1]} -G {args.hpc[2]} {cpu_bind} {gpu_bind} \\\n     elph -l"
+    else:
+        srun_line = "srun -n 128 -c 4 --cpu-bind=cores \\\n     elph -l"
+
+    # append args to command
+    script_tail = args_format(args)
+    if script_tail:
+        srun_line = f"{srun_line} {script_tail}"
+
+    slurm_script = [
+        "#!/bin/bash\n",
+        f"#SBATCH -A {args.account}\n",
+        f"#SBATCH -C {node_type}\n",
+        "#SBATCH -q regular\n",
+        "#SBATCH -N 2\n",
+        f"#SBATCH -t {args.time}\n",
+        f"#SBATCH -J {job_name}\n",
+        f"#SBATCH -o {job_name}_%j.out\n",
+        f"#SBATCH -e {job_name}_%j.err\n",
+        "\n",
+        f"module load conda\n",
+        f"conda activate elph\n",
+        f"export OMP_NUM_THREADS={omp_threads}\n",
+        "export OMP_PLACES=threads\n",
+        "export OMP_PROC_BIND=spread\n",
+        "\n",
+        f"cd {base_path}\n",
+        f"{srun_line.strip()}\n"
+    ]
+
+    slurm_path = base_path / f"{job_name}.slurm"
+    with open(slurm_path, "w") as f:
+        f.writelines(slurm_script)
+    try:
+        subprocess.run(f"sbatch {slurm_path}", shell=True, check=True)
+        print(f"{job_name}.slurm successfully submitted!")
+    except subprocess.CalledProcessError as e:
+        print(f"sbatch {job_name} failed with exit code {e.returncode}")
