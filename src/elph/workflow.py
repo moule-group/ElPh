@@ -159,43 +159,6 @@ def run_lambda(basis, func):
         eng_n, freq_n, huangrhys_n, reorg_n, gii_n, gii_n_cart = ep.parse_log('neutral.log', 'hr_neutral.log')
         eng_c, freq_c, huangrhys_c, reorg_c, gii_c, gii_c_cart = ep.parse_log('cation.log', 'hr_cation.log')
 
-        # 4-point method
-        # Calculate onsite energy for relaxed neutral molecule (Rn)
-        #os.mkdir(os.path.join(main_path, 'reorgE', 'neutral_opt'))
-        #os.chdir(os.path.join(main_path, 'reorgE', 'neutral_opt'))
-        #ep.onsite_eng(atoms=orginal_atoms, bset=basis, opt=True)
-        #neutral_rn_eng = ep.parse_log('mo.log')
-        #os.chdir(os.pardir)
-        # Calculate onsite energy for relax charged molecule (Rc)
-        #os.mkdir(os.path.join(main_path, 'reorgE', 'charged_opt'))
-        #os.chdir(os.path.join(main_path, 'reorgE', 'charged_opt'))
-        #ep.onsite_eng(atoms=orginal_atoms, bset=basis, ncharge=1, opt=True)
-        #charged_rc_eng = ep.parse_log('mo_opt.log')
-        #os.chdir(os.pardir)
-
-        # Calculate onsite energy for charged molecule at Rn
-        #os.mkdir(os.path.join(main_path, 'reorgE', 'charged_at_Rn'))
-        #os.chdir(os.path.join(main_path, 'reorgE', 'charged_at_Rn'))
-        #cmol_rn = ase.io.read(os.path.join(main_path, 'onsiteE', 'charged_opt', 'opt.xyz')) # Read the structure file
-        #ep.onsite_eng(atoms=cmol_rn, bset=basis, ncharge=1)
-        #charged_rn_eng = ep.parse_log('mo_opt.log')
-        #os.chdir(os.pardir)
-        # Calcualte onsite energy for neutral molecule at Rc
-        #os.mkdir(os.path.join(main_path, 'reorgE', 'neutral_at_Rc'))
-        #os.chdir(os.path.join(main_path, 'reorgE', 'neutral_at_Rc'))
-        #mol_rc = ase.io.read(os.path.join(main_path, 'reorgE', 'neutral_opt', 'opt.xyz')) # Read the structure file
-        #ep.onsite_eng(atoms=mol_rc, bset=basis)
-        #neutral_rc_eng = ep.parse_log('mo_opt.log')
-        #os.chdir(os.pardir) 
-
-        #reorg_eng = charged_rn_eng + neutral_rc_eng - neutral_rn_eng - charged_rc_eng
-
-        #onsiteE = {'neutral_rc': neutral_rc_eng,
-        #           'neutral_rn': neutral_rn_eng,
-        #           'charged_rn': charged_rn_eng,
-        #           'charged_rc': charged_rc_eng,
-        #           'reorg': reorg_eng
-        #        }
 
         local = {'reorg_eng_n': sum(reorg_n),
                  'reorg_eng_c': sum(reorg_c),
@@ -336,13 +299,7 @@ def run_matrix(mesh):
 
     gii_n_squared = np.load('local/local_epc.npz')['gii_n'] # Load the gii from local_epc.json file
     gii_c_squared = np.load('local/local_epc.npz')['gii_c'] 
-    freqs_l_n = np.load('local/local_epc.npz')['freq_n']
-    freqs_l_c = np.load('local/local_epc.npz')['freq_c']
-    freqs_l = np.concatenate((freqs_l_n, freqs_l_c), axis=0) # Frequency from Gaussian (local part)
-    gii_n_cart_squared = np.load('local/local_epc.npz')['gii_n_cart'] # cart means the cartesian coordinates
-    gii_c_cart_squared = np.load('local/local_epc.npz')['gii_c_cart']
     epcL_squared = np.concatenate((gii_n_squared, gii_c_squared), axis=0)
-    epcL_cart_squared = np.concatenate((gii_n_cart_squared, gii_c_cart_squared), axis=0)
 
     epcA_cart = np.einsum('ij,kij->kj', matrix_A, displacement_A)  # i is number of atoms, j is 3 (x,y,z; cartesian); k is the index of phonon modes
     epcB_cart = np.einsum('ij,kij->kj', matrix_B, displacement_B)  # The shape here is k,3           
@@ -361,24 +318,15 @@ def run_matrix(mesh):
                    'B':epcB_squared,
                    'C':epcC_squared}
     
-    epc_cart = {'L':np.sqrt(epcL_cart_squared),
-                'A':epcA_cart, # This is the epc matrix for running SVD projection
-                'B':epcB_cart,
-                'C':epcC_cart}
-    
     # Save the electron-phonon coupling matrix asp a numpy .npz file.
     np.savez_compressed('epc' + '.npz', **epc_squared)
-    np.savez_compressed('epc_cart' + '.npz', **epc_cart) # Save the svd electron-phonon coupling matrix as a numpy .npz file.
 
     # Calculate the variance of the electron-phonon coupling matrix
-    variL, sigmaL = ep.variance(freqs_l, epcL_squared, 1, 298, unit='cm-1') # Variance for local el-ph coupling matrix
     variA, sigmaA = ep.variance(freqs_nl, epcA_squared, nqpts, 298) # Variance for dimer A, frequency from phonopy (non-local part)
     variB, sigmaB = ep.variance(freqs_nl, epcB_squared, nqpts, 298) # Variance for dimer B
     variC, sigmaC = ep.variance(freqs_nl, epcC_squared, nqpts, 298) # Variance for dimer C
 
-    variance = {'vL':variL,
-                'sL':sigmaL,
-                'vA':variA,
+    variance = {'vA':variA,
                 'sA':sigmaA,
                 'vB':variB,
                 'sB':sigmaB,
@@ -409,68 +357,3 @@ def run_tlt_mobility(filename="mobility.json", output="tlt_mobility"):
     
     with open(f'{output}.json', 'w', encoding='utf-8') as f:
         json.dump(mobility, f, ensure_ascii=False, indent=4)
-
-def run_svd_projection(nqpts, temp=298.0):
-    """
-    Run SVD projection using numpy
-    Args:
-    nqpts (int): The number of q points to run SVD projection
-    temp (float): The temperature to run SVD projection (Defaults to 298.0)
-    ------------------------------------------------------------
-    Return:
-    2 svd_result.npz files which save the SVD projection result for local and non-local data
-    """
-    print(" Running phonon modes projections using SVD ... ")
-    cm_1tothz = 3e-2  # Convert cm-1 to THz
-
-    main_path = os.getcwd()
-    os.makedirs(os.path.join(main_path, 'svd'), exist_ok=True) # Create a directory for SVD projection
-    atoms = ase.io.read(getGeometry(main_path)) # Read the structure file
-    natoms = len(atoms)
-    nmodes = 3 * natoms
-
-    freq_l_n = np.load(os.path.join(main_path, 'local', 'local_epc.npz'))['freq_n']
-    freq_l_n *= cm_1tothz # Convert to Hz
-    freq_l_c = np.load(os.path.join(main_path, 'local', 'local_epc.npz'))['freq_c']
-    freq_l_c *= cm_1tothz # Convert to Hz
-    freq_l = np.concatenate((freq_l_n, freq_l_c), axis=0)
-    freq_nl = np.loadtxt('frequencies.txt')[0:nmodes*nqpts]
-
-    data = np.load('epc.npz')
-    epcL = np.sqrt(data['L'])
-    epcA = np.sqrt(data['A'][0:nmodes*nqpts]) # These are already in the squared data
-    epcB = np.sqrt(data['B'][0:nmodes*nqpts])
-    epcC = np.sqrt(data['C'][0:nmodes*nqpts])
-
-    be_l = 1 / np.tanh((h*freq_l*1e12) / (2*k*temp)) # Bose-Einstein factor local EPC
-    be_nl = 1 / np.tanh((h*freq_nl*1e12) / (2*k*temp)) # Bose-Einstein factor for non-local EPC
-    
-    epc_l = epcL
-    epc_l *= be_l
-    svd_array_l = np.stack((freq_l, epc_l), axis=1)
-    s_l, f_sys_l, f_bath_l, coeff_sys_l, coeff_bath_l = svd.svd_projection(freq_l, svd_array_l)
-
-    epc_nl = epcA + epcB + epcC
-    epc_nl *= be_nl
-    svd_array_nl = np.stack((freq_nl, epc_nl), axis=1)
-    s_nl, f_sys_nl, f_bath_nl, coeff_sys_nl, coeff_bath_nl = svd.svd_projection(freq_nl, svd_array_nl)
-
-
-    result_l = {'svd': s_l,
-                'freq_sys':f_sys_l,
-                'freq_bath':f_bath_l,
-                'coeff_sys':coeff_sys_l,
-                'coeff_bath':coeff_bath_l}
-    
-    result_nl = {'svd': s_nl,
-                'freq_sys':f_sys_nl,
-                'freq_bath':f_bath_nl,
-                'coeff_sys':coeff_sys_nl,
-                'coeff_bath':coeff_bath_nl}
-    
-    np.savez_compressed(os.path.join(main_path, 'svd','svd_result_local.npz'), **result_l) 
-    np.savez_compressed(os.path.join(main_path, 'svd','svd_result_nonlocal.npz'), **result_nl) 
-
-    
-   
-    
