@@ -4,6 +4,7 @@ import json
 import numpy as np
 import os
 import sys
+import shutil
 from scipy.constants import h, k
 import elph.utils as ut
 import elph.elphtool as ep
@@ -47,6 +48,7 @@ def run_j0(basis, func, supercell_array, nmols):
     j_A, j_B, j_C as j0.json and j0_eff.json file
     """    
     main_path = os.getcwd() # Main directory which contain all subfolders
+    phonon_path = main_path + "/2-phonons"
     j0_file = glob.glob(os.path.join(main_path, 'j', 'j0_eff.json'))
     xyz_file = glob.glob(os.path.join(main_path, '1', 'monomer_1.xyz'))
     if not j0_file: # If j_0.json is not exists, run the following simulation
@@ -55,8 +57,24 @@ def run_j0(basis, func, supercell_array, nmols):
             os.makedirs(os.path.join(main_path, 'j'), exist_ok=True) # Create a directory for J_ij
 
         except FileNotFoundError:
-                ut.print_error("Structure (.cif; POSCAR ...) file not found in the current directory. Exiting.") 
-                sys.exit(1)  # Exit the script with an error
+            ut.print_error("Structure (.cif; POSCAR ...) file not found in the current directory. Exiting.") 
+            sys.exit(1)
+
+        if not os.path.exists(main_path + "/FORCE_SETS"):
+            if os.path.exists(phonon_path + "/FORCE_SETS"):
+                print(f"'FORCE_SETS' not found in {main_path}, but found in '2-phonons'. Copying...")
+                shutil.copy(phonon_path + "/FORCE_SETS", main_path + "/FORCE_SETS")
+            else:
+                ut.print_error("'FORCE_SETS' file not found in the current directory or in '2-phonons'. Exiting.")
+                sys.exit(1)
+
+        if not os.path.exists(main_path + "/phonopy_disp.yaml"):
+            if os.path.exists(phonon_path + "/phonopy_disp.yaml"):
+                print(f"'phonopy_disp.yaml' not found in {main_path}, but found in '2-phonons'. Copying...")
+                shutil.copy(phonon_path + "/phonopy_disp.yaml", main_path + "/phonopy_disp.yaml")
+            else:
+                ut.print_error("'phonopy_disp.yaml' file not found in the current directory or in '2-phonons'. Exiting.")
+                sys.exit(1)
 
         if not xyz_file:
             os.makedirs(os.path.join(main_path, 'mapping'), exist_ok=True) # Create a directory for J_ij
