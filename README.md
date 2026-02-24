@@ -29,59 +29,43 @@ export PATH="$GAUSS_SCRDIR:$PATH"
 
 For installing Catnip (ChArge TraNsfer Integral Package), please refer to https://joshuasbrown.github.io/docs/CATNIP/catnip_downloads.html
 
+Make scripts in src/elph executable.
+
+```
+chmod +x * 
+```
+
+We recommend users set the environment variable 
+
+```
+export ELPH=/pscratch/sd/r/.../ElPh/src/elph
+export PATH=$ELPH:$PATH
+```
+
+Example code
+```
+$ELPH/create_jo_input.py 
+```
+
 # Usage:
 
 ## Transfer Integral
 
-**First step:**  Input the number of molecules (defaults to 3) to be extracted. The code will generate monomer and dimer structure files.
+**First step:**  Prepare input files in the folder: **CONTCAR** or **POSCAR** (VASP structure format) ; **FORCE_SETS** and **phonopy_disp.yaml** from Phonopy simulation.
 
-**Second step:** Prepare input files in the folder: **POSCAR** (VASP structure format) ; **FORCE_SETS** from Phonopy simulation; phonopy_disp.yaml from Phonopy simulation.
+**Second step:** Run create_j0_input.py, which will generate the input files to calculate transfer integral J at reference state. Then loop through every subfolder to execute run.bash. This will conduct gaussian simulation.
 
-Note: We consider 2D plane (high mobility plane of organic semiconductors) and only pick 3 nearest neighbors in this 2D plane. The 3 numbering monomers will be pair A (monomer 1 and 2); pair B (monomer 1 and 3); pair C (monomer 2 and 3), pair A and pair B will be transversed pairs and pair C will be parallel pairs (the shorter lattice parameter in 2D plane).
-
-```
-elph -w 1
-```
-
-Prerequisite: Finish transfer integral simulation first.
+**Third step:** Run j0.py. This will call Catnip to calculate transfer integral based on Gaussian output files. the result will be written into j0.json.
 
 ## Electron Phonon Coupling
 
-```
-elph -w 2 
-```
+**First step:** Run create_disp_input.py. This will generate displaced structures in "displacements" folder. It will also return "run_all.sh" script for users to conduct Gaussian simulations.
 
-## Transient Localization Theory Charge Carrier Mobility
+**Second step:** User should finish all Gaussian simulations for 1 dimer and 2 monomers. (Ex: dimer A; monomer 1 and 2. dimer B; monomer 1 and 3). Then run disp_j.py, which will generate a run script for user to run catnip calculations.
 
-Prepare **mobility.json** as the input, then run:
+## Variance and Projection
 
-```
-elph -w 3
-```
-
-## Arguments
-
--w --workflow: Workflow selection (1: non local electron phonon coupling 2: SVD phonon mode projection 3: TLT mobility)
-
--q --mesh: Defining a mesh grid. (Defaults to [8,8,8])
-
--n --nmol: The number of molecules will be extracted (Defaults to 3)
-
--b --basis: Gaussian basis sets (Defaults to ['6-311G*','6-311G**']) for local and non-local simulation
-
--f --functional: Gaussian functional (Defaults to['b3lyp','b3lyp']) for local and non-local simulation
-
--s --supercell: The supercell matrix (Defaults to [2,2,2])
-
--homo --homo: P-type semiconductors: HOMO; N-type semiconductors: LUMO. (Defaults to True)
-
--o --output: Mobility calculation output name (Defaults to tlt_mobility.json)
-
--svd --svdqpts: Number of qpoints that SVD projection will apply (Defaults to 1)
-
-## mobility.json
-
-In order to run mobility calculation, there are variables need to be specified. Please see the example here. [View Example File](example/mobility.json)
+Please check the jupyter notebook in example folder. There are 3 different materials as tutorials. 
 
 
 # Theory:
@@ -108,7 +92,6 @@ $Q_{I}$ is normal coordinate at vibrational mode I.
 
 In order to efficiently calculate the electron-phonon coupling parameter $g_{ij}^I$, 
 we can do the conversion as below.
-
 
 $g_{ij} = \frac{\partial J_{ij}}{\partial Q_{I}}$
 
