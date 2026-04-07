@@ -14,6 +14,15 @@ from scipy import sparse
 from pathlib import Path
 import time
 
+def number_to_letters(n):
+    """Convert 0 -> A, 1 -> B, ..., 25 -> Z, 26 -> AA, ..."""
+    result = ""
+    n += 1
+    while n > 0:
+        n, rem = divmod(n - 1, 26)
+        result = chr(65 + rem) + result
+    return result
+
 def getGeometry(path):
     """ Using glob function in python to find the structure
     file in the current path
@@ -195,12 +204,13 @@ def unwrap_molecule_dimer(structure_path, supercell_array, nmols):
         ase.io.write(name_mol, mol)
 
     pairs = list(combinations(nearest_idx, 2)) 
-    for j, letter in enumerate(string.ascii_uppercase[:len(pairs)]): # (0,A) (1,B) ...
+    for j, pair in enumerate(pairs):
+        letter = number_to_letters(j)
         os.mkdir(letter)
         label_list.append(letter)
         name_dimer = os.path.join(letter, f"dimer_{letter}.xyz")
-        atoms_id1 = list(full_mols[pairs[j][0]])
-        atoms_id2 = list(full_mols[pairs[j][1]])
+        atoms_id1 = list(full_mols[pair[0]])
+        atoms_id2 = list(full_mols[pair[1]])
         dimer = atoms[atoms_id1] + atoms[atoms_id2]
         dimer.set_pbc((False, False, False))
         ase.io.write(name_dimer, dimer) 
@@ -230,10 +240,9 @@ def mol_orbital(bset, functional, disper_corr):
     else:
         dispersion = 'EmpiricalDispersion=GD3BJ'
     
-    atoms.calc = Gaussian(mem='18GB',
+    atoms.calc = Gaussian(mem='24GB',
                  nprocshared=12,
                  label='mo',
-                 save=None,
                  method=functional,
                  basis=bset,  
                  scf='tight',
