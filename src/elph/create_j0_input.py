@@ -235,7 +235,9 @@ def mol_orbital(bset, functional, disper_corr):
     geometry = getGeometry(path)
     atoms = ase.io.read(geometry)
 
-    if disper_corr==1:
+    if disper_corr == 0:
+        dispersion = ''
+    elif disper_corr == 1:
         dispersion = 'EmpiricalDispersion=GD3'
     else:
         dispersion = 'EmpiricalDispersion=GD3BJ'
@@ -267,22 +269,12 @@ def run_init(basis_set, functional, dispersion_correction, supercell_array, nmol
     Args:
         basis_set (str): DFT Basis sets
         functional (str): DFT functional
-        dispersion_correction (int): Dispersion correction (1-> D3, 2-> D3-BJ)
+        dispersion_correction (int): Dispersion correction (0-> no dispersion, 1-> D3, 2-> D3-BJ)
         supercell_array (tuple): The supercell matrix (need large enough to find the neighbors)
         nmols (int): Number of molecules to construct nearest neighbors
     ------------------------------------------------------------
-    Here is the example 2D figure below, 1 and 2 are molecules. You have to reference the numbering of Ref; and 3 molecules with * sign.
-    ----------------------------
-          *      *     *
-          
-      #      2#      3#
-                   
-          *      1*    *
-                        
-      #      #       #
-    ---------------------------- 
     Return:
-        j_A, j_B, j_C as j0.json and j0_eff.json file
+       Initials files for Gaussian calculations (.com) and .xyz files for monomers and dimers.
     """    
     path = os.getcwd() # Main directory which contain all subfolders
     j0_file = glob.glob(os.path.join(path, 'j', 'j0_eff.json'))
@@ -320,7 +312,6 @@ def ask_with_default(prompt, default, type=str):
         return default
     return type(user_input)
 
-
 if __name__ == "__main__":
 
     print(" ----------------------------------------------------------------- ")
@@ -355,7 +346,7 @@ if __name__ == "__main__":
     "M062X")
 
     dispersion_correction = ask_with_default(
-    "Dispersion correction (1-> D3, 2-> D3BJ)",
+    "Dispersion correction (0-> no dispersion, 1-> D3, 2-> D3BJ)",
     1,int)
 
     print("\n"
@@ -364,7 +355,7 @@ if __name__ == "__main__":
           f"Number of molecules to construct nearest neighbors: {nmols}\n"
           f"Basis sets: {basis_set}\n"
           f"Functional: {functional}\n"
-          f"Dispersion correction (1-> D3, 2-> D3-BJ): {dispersion_correction}\n"
+          f"Dispersion correction (0-> no dispersion, 1-> D3, 2-> D3-BJ): {dispersion_correction}\n"
           " ----------------------- \n"
     )
 
