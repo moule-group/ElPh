@@ -89,12 +89,14 @@ echo "All displacements finished at $(date)"
     script_path.write_text(script_content)
     script_path.chmod(0o755)
 
-def mol_orbital(basis_set, functional, disper_corr):
+def mol_orbital(basis_set, functional, disper_corr, mem, nproc):
     """ Run Gaussian to compute the molecular orbitals coefficient and energy for the system (Single point calculation)
     Args:
         basis_set (str): Basis set for DFT calculation 
         functional (str): Functional for DFT calculation 
         disper_corr (int): 1 is D3, 2 is D3BJ
+        mem (int): Memory limit for Gaussian
+        nproc (int): Number of cores be used in Gaussian
     -----------------------------------------------
     Return:
         .pun file which contains molecular orbital for the cacluation later for J 
@@ -104,13 +106,15 @@ def mol_orbital(basis_set, functional, disper_corr):
     geometry = getGeometry(path)
     atoms = ase.io.read(geometry)
 
-    if disper_corr == 1:
+    if disper_corr == 0:
+        dispersion = ''
+    elif disper_corr == 1:
         dispersion = 'EmpiricalDispersion=GD3'
     else:
         dispersion = 'EmpiricalDispersion=GD3BJ'
     
-    atoms.calc = Gaussian(mem='18GB',
-                 nprocshared=12,
+    atoms.calc = Gaussian(mem=f'{mem}GB',
+                 nprocshared=nproc,
                  label='mo',
                  save=None,
                  method=functional,
@@ -120,13 +124,15 @@ def mol_orbital(basis_set, functional, disper_corr):
                  extra=f'nosymm punch=mo iop(3/33=1) {dispersion}') # iop(3/33=1) output one-electron integrals to log file.
     atoms.calc.write_input(atoms)
 
-def create_displacement(label, basis_set, functional, dispersion_correction, delta=0.01):
+def create_displacement(label, basis_set, functional, dispersion_correction, memory, nprocs, delta=0.01):
     """ Create atomic displacement and return each displaced structure; generate G16 input files at each subdirectory
     Args: 
         label (str): Label for the folder to create displaced structures
         basis_sets (str): DFT basis sets
         functional (str): DFT functional
         dispersion_correction (int): Dispersion correction (1-> D3, 2-> D3-BJ)
+        memory (int): Memory limit for Gaussian
+        nprocs (int): Number of cores be used in Gaussian
         delta (float): Magnitude of displacement in Angstrom (Defaults to 0.01A)
     """
     os.chdir(label)
@@ -147,11 +153,11 @@ def create_displacement(label, basis_set, functional, dispersion_correction, del
             os.makedirs(disp_name, exist_ok=True)
             os.chdir(disp_name)
             ase.io.write(disp_name+'.xyz', disp_atoms)
-            mol_orbital(basis_set, functional, dispersion_correction)
+            mol_orbital(basis_set, functional, dispersion_correction, memory, nprocs)
             write_run_script()
             os.chdir('..')
 
-def run_disp_mo(label, basis_sets, functional, dispersion_correction):
+def run_disp_mo(label, basis_sets, functional, dispersion_correction, memory, nprocs):
     """ Main function to generate Gaussian input file and run.sh for displaced molecules 
     and dimers, which can calculate molecular orbitals
     Args:
@@ -159,6 +165,8 @@ def run_disp_mo(label, basis_sets, functional, dispersion_correction):
         basis_sets (str): DFT basis sets
         functional (str): DFT functional
         dispersion_correction (int): Dispersion correction (1-> D3, 2-> D3-BJ)
+        memory (int): Memory limit for Gaussian
+        nprocs (int): Number of cores be used in Gaussian
     ------------------------------------------------------------
     Return:
     j_list (list): The transfer integral list for displaced molecules and dimers!
@@ -167,7 +175,7 @@ def run_disp_mo(label, basis_sets, functional, dispersion_correction):
     write_all_run_script(label)
     if not os.path.exists(os.path.join(path, label, 'displacements')):
         print(' Creating displaced molecules and dimers ... ')
-        create_displacement(label, basis_sets, functional, dispersion_correction)
+        create_displacement(label, basis_sets, functional, dispersion_correction, memory, nprocs)
         
     print(f" Displacement folder {label} is generated and run_all.sh script has been written! ")
 
@@ -211,8 +219,16 @@ if __name__ == "__main__":
     "M062X") 
     
     dispersion_correction = ask_with_default(
-    "Dispersion correction (1-> D3, 2-> D3BJ)",
+    "Dispersion correction (0-> no dispersion, 1-> D3, 2-> D3BJ)",
     1,int)
+
+    memory = ask_with_default(
+    "Memory usage for Gaussian simulations",
+    30,int)
+
+    nprocs = ask_with_default(
+    "Number of codes used in Gaussian simulations",
+    20,int)
 
     print("")
     print("-------------------------------\n"
@@ -220,12 +236,12 @@ if __name__ == "__main__":
       f"Label for the folder to create displaced structures: {label}\n"
       f"basis sets: {basis_set}\n"
       f"functional: {functional}\n"
-      f"dispersion correction (1: D3, 2: D3-BJ): {dispersion_correction}\n"
+      f"dispersion correction (0-> no dispersion, 1-> D3, 2-> D3-BJ): {dispersion_correction}\n"
       "-------------------------------"
      )
     print("")
 
-    run_disp_mo(label, basis_set, functional, dispersion_correction)
+    run_disp_mo(label, basis_set, functional, dispersion_correction, memory, nprocs)
 
     print("")
     print(" ----------------------------------------------------------------- ")

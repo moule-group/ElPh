@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-import os
-import json
 import subprocess
-import string
-from itertools import combinations
 import time
 
 def run_catnip(path1, path2, path3, path4, path5, path6):
@@ -25,47 +21,30 @@ def run_catnip(path1, path2, path3, path4, path5, path6):
     
     return output.decode('ascii').split()[-2], output.decode('ascii').split()[-13]
 
-def run_j0(nmols):
+def run_j0(monomer1, monomer2, dimer):
     """ Main function for running Catnip to get transfer integral J_0
     Args:
-        Here is the example 2D figure below, 1 and 2 are molecules. You have to reference the numbering of Ref; and 3 molecules with * sign.
-        ----------------------------
-              *      *     *
-          
-          #      2#      3#
-                   
-              *      1*    *
-                        
-          #      #       #
-        ---------------------------- 
+        monomer1 (int): The numbering of monomer 1
+        monomer2 (int): The numbering of monomer 2
+        dimer (str): The label for the dimer
     Return:
-        j0.json file
+        {dimer}.out file for transfer integral
     """    
-    print(" --- Start transfer integral J calculation ---")
-    path = os.getcwd()
-    labels = string.ascii_uppercase
-    monomers = list(range(1, nmols + 1))
-    results_json = {} 
-    for k, (i, j) in enumerate(combinations(monomers, 2)):
-        label = labels[k]          # A, B, C, ...
+    print(" --- Start transfer integral J calculation ---")      # A, B, C, ...
 
-        j_eff, j0 = run_catnip(
-            f'./{i}/{i}.pun',
-            f'./{j}/{j}.pun',
-            f'./{label}/{label}.pun',
-            f'./{i}/mo.log',
-            f'./{j}/mo.log',
-            f'./{label}/mo.log'
+    j_eff, j0 = run_catnip(
+            f'./{monomer1}/{monomer1}.pun',
+            f'./{monomer2}/{monomer2}.pun',
+            f'./{dimer}/{dimer}.pun',
+            f'./{monomer1}/mo.log',
+            f'./{monomer2}/mo.log',
+            f'./{dimer}/mo.log'
         )
-    
-        results_json[label] = {
-        "pair": [i, j],
-        "j_eff": float(j_eff),
-        "j0": float(j0)}
+    with open(f"{dimer}.out", "w") as f:
+        f.write(f"J_eff: {j_eff} eV\n")
+        f.write(f"J_0: {j0} eV\n")
 
-    with open(os.path.join(path, 'j', 'j0.json'), "w") as f: # Write to file
-        json.dump(results_json, f, indent=2)
-    print(" --- The result has been saved to j0.json file --- ")
+    print(f" --- The result has been saved to the {dimer}.out file --- ")
     print("")
     print(" --------------------------------------------------------- ")
     print(
@@ -78,7 +57,6 @@ def run_j0(nmols):
     """)
     print(" --------------------------------------------------------- ")
     print(time.ctime())
-
 
 def ask_with_default(prompt, default, type=str):
     """ Ask user for input with a default value. If user presses Enter, return default.
@@ -104,8 +82,14 @@ if __name__ == "__main__":
     print(" #########   ##########  $            $        $  ")
     print(" ----------------------------------------------------------------- ")
 
-    nmols = ask_with_default(
-    "Number of molecules to construct nearest neighbors",
-    4,int)
+    dimer = ask_with_default(
+    "Label for the dimer folder",
+    "A",str)
+    monomer1 = ask_with_default(
+    "Label for the monomer1 folder",
+    1,str)   
+    monomer2 = ask_with_default(
+    "Label for the monomer2 folder",
+    2,str)
     
-    run_j0(nmols)
+    run_j0(monomer1, monomer2, dimer)
