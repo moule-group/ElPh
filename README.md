@@ -49,7 +49,7 @@ $ELPH/create_jo_input.py
 
 # Usage:
 
-## Transfer Integral
+## Optimized Structure Transfer Integral Simulation
 
 **First step:**  Prepare input files in the folder: **CONTCAR** or **POSCAR** (VASP structure format) ; **FORCE_SETS** and **phonopy_disp.yaml** from Phonopy simulation.
 
@@ -57,18 +57,20 @@ $ELPH/create_jo_input.py
 
 **Third step:** Run j0.py. This will call Catnip to calculate transfer integral based on Gaussian output files. the result will be written into j0.json.
 
-## Electron Phonon Coupling
+## Displaced Structure Transfer Integral Simulation
 
 **First step:** Run create_disp_input.py. This will generate displaced structures in "displacements" folder. It will also return "run_all.sh" script for users to conduct Gaussian simulations.
 
 **Second step:** User should finish all Gaussian simulations for 1 dimer and 2 monomers. (Ex: dimer A; monomer 1 and 2. dimer B; monomer 1 and 3). Then run disp_j.py, which will generate a run script for user to run catnip calculations.
 
-## Variance and Projection
+Note: User can also utilize xTB package for transfer integral simulation
 
-Please check the jupyter notebook in example folder. There are 3 different materials as tutorials. 
+## Electron-Phonon Coupling (EPC) and Singular Value Decomposition (SVD) Analysis 
+
+Please check the example folder, there is a tutorial of BTBT dimer.
 
 # Theory:
-This will divide into 3 parts. First part is transfer integral J, the second part is electron phonon coupling parameter g and the last part is transient localization theory.
+This will divide into two parts. First part is transfer integral J, electron phonon coupling (EPC), and singular value decomposition (SVD) analysis. The second part is transient localization theory.
 
 ## Transfer integral J, Electron-Phonon Coupling (EPC), Variance, and Singular Value Decomposition (SVD)
 
@@ -80,7 +82,3 @@ The mobility equation is shown below:
 $\mu =  \frac{e}{kT} \frac{L^2_{x(y)}}{2\tau}$
 
 where $\tau$ is the relaxation time, $L^2_{x(y)}$ is squared localization length, e is the charge, T is the temperature in K, k is the Boltzmann constant. The mobility unit is in $\frac{cm^2}{Vs}$
-
-## Singular Value Decomposition (SVD) Analysis 
-
-Please check the example folder, there is a tutorial of BTBT dimer.
