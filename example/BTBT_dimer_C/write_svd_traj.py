@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Updated on Jul 22nd, 2026
 import argparse
 import ase.io
 import numpy as np
@@ -13,7 +14,7 @@ def trajectory_proj_mode(amp, dt, freqs, nframes, output, p, population_iq, X_al
         nframes (int): number of frames for the trajectory
         output: The output .xyz file name
         p (int): The projected mode index, user should select the index
-        population_iq: original phonon mode population 
+        population_iq: A matrix with PM coefficient as column vector to construct X matrix (OM)
         X_allq: X matrix
         xyz (str): dimer xyz file name
     Return: 
@@ -23,6 +24,8 @@ def trajectory_proj_mode(amp, dt, freqs, nframes, output, p, population_iq, X_al
     n_atoms_xyz = len(atoms_xyz)
     atoms_element = atoms_xyz.get_chemical_symbols()
     atoms_coords = atoms_xyz.get_positions()
+    pm_to_om = population_iq
+    om_to_pm = np.linalg.pinv(pm_to_om) # Inverse of pm_to_om, it obtains OM coefficient as column vector to get PM
 
     # Generate frames and write
     with open(f'{output}.xyz', "w") as f:
@@ -30,10 +33,9 @@ def trajectory_proj_mode(amp, dt, freqs, nframes, output, p, population_iq, X_al
             time = t * dt * 1e-15 # in seconds
             omega_t = 2 * np.pi * freqs * 1e12 * time # freq * time
             factor = np.exp(1j * omega_t) 
-            factor *= population_iq[p,:] # Multiply the coefficient (population of each original mode)
+            factor *= om_to_pm[:,p] # Multiply the coefficient
 
-            disp_matrix = factor * X_allq 
-            disp = np.sum(disp_matrix, axis=1) # Sum over all modes 
+            disp = X_allq @ factor
             disp_xyz = disp.reshape(n_atoms_xyz, 3)
             atoms_new_coords = atoms_coords + amp * disp_xyz.real
 
